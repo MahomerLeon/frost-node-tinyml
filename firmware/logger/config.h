@@ -1,0 +1,53 @@
+// Settings of the data logger firmware.
+// Change values here, not inside logger.ino.
+
+#pragma once
+
+#include <Arduino.h>
+
+// ---- Sensor (I2C) ----
+const int I2C_SDA_PIN = 8;
+const int I2C_SCL_PIN = 9;
+const uint8_t BME280_I2C_ADDRESS = 0x76;
+
+// ---- Sampling ----
+// Minutes between two readings. Starting value, to be confirmed in the data
+// capture protocol (R4).
+const unsigned long SAMPLE_INTERVAL_MINUTES = 5;
+
+// ---- Serial port ----
+const unsigned long SERIAL_BAUD_RATE = 115200;
+
+// ---- Clock ----
+// How the node gets the date and time:
+//   0 = serial command "SETTIME <epoch>" (sent by ml/serial_dump.py)
+//   1 = NTP over Wi-Fi. Needs a file secrets.h with the Wi-Fi name and
+//       password: copy secrets.example.h to secrets.h and edit it.
+//       secrets.h is listed in .gitignore and must never be committed.
+// In both cases SETTIME still works, and the internal clock of the ESP32
+// keeps the time between readings. The clock is LOST on reset or power loss.
+#define USE_WIFI_NTP 0
+
+const char NTP_SERVER[] = "pool.ntp.org";
+const unsigned long WIFI_TIMEOUT_MS = 15000;
+const unsigned long NTP_TIMEOUT_MS = 10000;
+
+// Local time zone used to write the timestamps (Colombia: UTC-5, no DST).
+// Both values must describe the same offset.
+const long UTC_OFFSET_SECONDS = -5 * 3600;
+const char UTC_OFFSET_TEXT[] = "-05:00";
+
+// ---- Storage ----
+const char LOG_FILE_PATH[] = "/log.csv";
+const char LOG_FILE_HEADER[] =
+    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status";
+
+// ---- Valid ranges ----
+// Measurement limits of the BME280 taken from its datasheet. A reading
+// outside them is a sensor failure. These are NOT agronomic thresholds.
+const float MIN_VALID_TEMPERATURE_C = -40.0f;
+const float MAX_VALID_TEMPERATURE_C = 85.0f;
+const float MIN_VALID_HUMIDITY_PCT = 0.0f;
+const float MAX_VALID_HUMIDITY_PCT = 100.0f;
+const float MIN_VALID_PRESSURE_HPA = 300.0f;
+const float MAX_VALID_PRESSURE_HPA = 1100.0f;

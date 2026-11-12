@@ -1,0 +1,42 @@
+# ---- Python ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# ---- Arduino / PlatformIO build output ----
+build/
+.pio/
+*.bin
+*.elf
+
+# ---- Large data ----
+# Public archive of 63 MB: too big for comfortable use on GitHub.
+# How to get it again is explained in data/raw/public/README.md.
+data/raw/public/*.zip
+# Any other compressed archive placed in the raw data folder
+data/raw/**/*.gz
+data/raw/**/*.7z
+
+# Built datasets can exceed 100 MB when the public sources are included.
+# Their report and config copy (dataset_vN_report.txt, dataset_vN_config.yaml)
+# ARE tracked, and the CSV is rebuilt with ml/prepare_dataset.py.
+data/processed/dataset_v*.csv
+
+# ---- ML artifacts that can be regenerated ----
+*.h5
+*.keras
+
+# ---- Editor and OS files ----
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+# ---- Secrets (Wi-Fi passwords, API keys) must never be committed ----
+secrets.h
+.env
+
+# ---- Log files ----
+*.log

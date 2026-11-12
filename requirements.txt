@@ -1,0 +1,29 @@
+# Python dependencies. Install them in a virtual environment (see README.md).
+#
+# Checked on 2026-11-12 with Python 3.13.17: tensorflow 2.21.0, pandas 3.1.1,
+# numpy 2.5.4, scikit-learn 1.9.1. Versions are not pinned here; to record the
+# exact versions of a working environment run
+#   python -m pip freeze > requirements.lock.txt
+
+# Data preparation and evaluation
+pandas
+numpy
+scikit-learn
+pyyaml
+
+# Model training and TFLite int8 conversion.
+# Use Python 3.13: on 2026-11-12 pip found no stable TensorFlow release for
+# Python 3.14 (only the pre-release 2.22.0rc0).
+tensorflow
+
+# Scraping: HTTP requests and HTML parsing
+requests
+beautifulsoup4
+
+# Dashboard. Streamlit was chosen because the whole dashboard is one plain
+# Python script, it works directly with pandas tables, and it needs no HTML,
+# CSS or JavaScript. Run with:  py -m streamlit run <file>
+streamlit
+
+# Serial port access for ml/serial_dump.py and ml/validate_on_device.py
+pyserial

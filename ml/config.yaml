@@ -1,0 +1,73 @@
+# Configuration of ml/prepare_dataset.py, ml/train.py and ml/convert_tflite.py.
+# Paths are relative to the repository root.
+
+# Version number N of the output file data/processed/dataset_vN.csv.
+# A version is never overwritten: increase the number to build a new one.
+dataset_version: 1
+
+paths:
+  node_dir: data/raw/node                 # CSV logs downloaded from the node
+  ideam_dir: data/raw/public              # the three IDEAM UPTC files
+  zenodo_zip: data/raw/public/topoclimatic_graph_dataset_frost_prediction_v1.zip
+  zenodo_member: data/altiplano_frost_dataset_core_labeled.csv.gz
+  output_dir: data/processed
+  models_dir: ml/models                   # trained models and metrics
+  firmware_model_header: firmware/inference/model_data.h
+
+# Which sources to include. "node" is the own dataset (R4); the other two are
+# public support data.
+sources:
+  node: true
+  ideam: true
+  zenodo: true
+
+zenodo:
+  exclude_stations: [11]   # station excluded on purpose before any use
+
+# ---- Time grid and windows ----
+grid_minutes: 30           # common time step of every source
+window_hours: 3            # the model sees the last 3 hours
+horizon_hours: 6           # the label looks at the next 6 hours
+# Gaps are filled by linear interpolation only when the two real readings
+# around the gap are at most this far apart. Longer gaps stay empty.
+max_interpolation_gap_minutes: 60
+
+# ---- Labeling rule ----
+# The class depends on the MINIMUM temperature of the next horizon_hours.
+#   num_classes: 2 -> one threshold  [T]:        class 1 (risk) if minimum <= T
+#   num_classes: 3 -> two thresholds [Tlow, Thigh]:
+#                       class 2 if minimum <= Tlow, class 1 if minimum <= Thigh
+# The thresholds are an agronomic decision that has NOT been made yet, so
+# they are empty on purpose. prepare_dataset.py stops until you fill them in.
+# Example of the syntax only (not a recommendation):  thresholds_c: [1.5]
+labeling:
+  num_classes: 2
+  thresholds_c: []
+
+# ---- Split by whole days ----
+split:
+  train: 0.70
+  val: 0.15
+  test: 0.15
+  seed: 42
+
+# ---- Training (ml/train.py) ----
+training:
+  # Sources used for training and evaluation: any of node, ideam, zenodo.
+  # Use [node] to train only with the own dataset.
+  sources: [node, ideam, zenodo]
+  hidden_units: [16, 8]    # sizes of the two hidden layers; reduce if needed
+  max_epochs: 50
+  batch_size: 256
+  early_stopping_patience: 5
+  seed: 42
+
+# ---- Conversion (ml/convert_tflite.py) ----
+conversion:
+  representative_samples: 500   # train rows used to calibrate the int8 ranges
+  device_test_vectors: 100      # test rows exported to validate on the ESP32-S3
+
+# ---- Warning about scarce positives ----
+# Rule of thumb, not a result: warn when the training split has fewer
+# distinct cold events than this.
+min_positive_events_train: 30
