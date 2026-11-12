@@ -1,0 +1,35 @@
+# Configuration of the scraper, the node listener and the dashboard.
+# Paths are relative to the repository root.
+
+municipality: Tunja
+
+# HTML page that is scraped. "m" = metric units, "lang=en" = English labels
+# (the parser looks for the English words Morning, Noon, Evening, Night).
+url: "https://wttr.in/Tunja?m&lang=en"
+
+# The scraper identifies itself honestly and asks at a low rate.
+user_agent: "Mozilla/5.0 (student project; periodic forecast check)"
+
+interval_minutes: 60      # time between two scrapes (X)
+timeout_seconds: 40
+max_retries: 3            # attempts per scrape before giving up
+retry_wait_seconds: 30
+
+# Hour of the day of each column of the page. Checked on 2026-11-12 against
+# the hourly data of the same service: the four values matched these hours.
+period_hours:
+  Morning: 9
+  Noon: 12
+  Evening: 18
+  Night: 21
+
+# The node predicts the risk for the next hours; the dashboard compares it
+# with the forecast values that fall inside this window after the prediction.
+comparison_horizon_hours: 6
+
+paths:
+  forecast_log: data/raw/forecast/forecast_log.csv       # every scraped value
+  error_log: data/raw/forecast/scraper_errors.log        # failures
+  node_predictions: data/raw/node_live/predictions.csv   # PREDICTION lines
+  node_readings: data/raw/node_live/readings.csv         # STEP lines
+  ml_config: ml/config.yaml                              # risk threshold
