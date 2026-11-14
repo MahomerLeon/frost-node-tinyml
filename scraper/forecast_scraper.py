@@ -87,7 +87,7 @@ def parse_forecast(html, config, today=None):
     lines = container.get_text().split("\n")
 
     municipality = config["municipality"]
-    if not any(l.startswith("Location:") and municipality in l for l in lines):
+    if not any(line.startswith("Location:") and municipality in line for line in lines):
         raise ValueError(f"the page is not for {municipality}")
 
     hours = list(config["period_hours"].values())  # Morning, Noon, Evening, Night

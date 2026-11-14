@@ -23,7 +23,9 @@
 //   DUMP              print /log.csv (used by ml/serial_dump.py)
 //   DUMPPRED          print /predictions.csv (used by scraper/node_listener.py)
 //   CLEAR             delete both files
-//   BENCHMARK         time BENCHMARK_RUNS inferences and report resources (R7)
+//   BENCHMARK         time BENCHMARK_RUNS inferences and report resources (R7),
+//                     including power if an INA219 is connected
+//   LASTBENCH         print the last benchmark report saved in the flash
 //   VECTOR a,b,c,...  run the model on one already-quantized int8 input and
 //                     print the raw int8 output
 //   WINDOW <hour> t,h,p;t,h,p;...   run the full preprocessing + model on one
@@ -39,6 +41,7 @@
 #include <LittleFS.h>
 #include <sys/time.h>
 #include <Adafruit_BME280.h>
+#include <Adafruit_INA219.h>
 
 #include <Chirale_TensorFlowLite.h>
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -69,6 +72,10 @@ CircularBuffer<MODEL_WINDOW_STEPS> window;
 long openStepStart = -1;  // local time of the start of the step, in seconds
 float sumTemperature = 0, sumHumidity = 0, sumPressure = 0;
 int readingsInStep = 0;
+
+// ---- power meter (optional) ----
+Adafruit_INA219 ina219(INA219_I2C_ADDRESS);
+bool powerMeterReady = false;
 
 // ---- storage ----
 bool storageReady = false;
@@ -446,15 +453,45 @@ void takeSample() {
 
 // ------------------------------------------------------------- commands ----
 
-void printPercent(const char *label, unsigned long used, unsigned long total) {
-  Serial.print("BENCHMARK,");
-  Serial.print(label);
-  Serial.print(",");
-  Serial.print(used);
-  Serial.print(",");
-  Serial.print(total);
-  Serial.print(",");
-  Serial.println(100.0f * used / total, 2);
+// The benchmark report is printed AND kept in this text, so it can be saved
+// to the flash and read later with LASTBENCH.
+String benchmarkReport = "";
+
+void report(const String &line) {
+  Serial.println(line);
+  benchmarkReport += line + "\n";
+}
+
+void reportValue(const char *name, double value, int decimals) {
+  report(String("BENCHMARK,") + name + "," + String(value, decimals));
+}
+
+void reportPercent(const char *name, unsigned long used, unsigned long total) {
+  report(String("BENCHMARK,") + name + "," + String(used) + "," + String(total) +
+         "," + String(100.0f * used / total, 2));
+}
+
+// Average power at the 5 V input while the CPU is idle or running inferences
+// without pause. The INA219 is in series with the supply, so the values
+// include the losses of the voltage regulator of the board.
+void measurePower(bool runInferences, float &currentMa, float &powerMw, float &busVoltageV) {
+  currentMa = powerMw = busVoltageV = 0;
+  for (int i = 0; i < POWER_SAMPLES; i++) {
+    unsigned long start = millis();
+    while (millis() - start < POWER_SAMPLE_PERIOD_MS) {
+      if (runInferences) {
+        interpreter->Invoke();
+      } else {
+        delay(1);
+      }
+    }
+    currentMa += ina219.getCurrent_mA();
+    powerMw += ina219.getPower_mW();
+    busVoltageV += ina219.getBusVoltage_V();
+  }
+  currentMa /= POWER_SAMPLES;
+  powerMw /= POWER_SAMPLES;
+  busVoltageV /= POWER_SAMPLES;
 }
 
 // Times BENCHMARK_RUNS inferences and reports the resources used (R7).
@@ -463,6 +500,7 @@ void runBenchmark() {
     Serial.println("# BENCHMARK skipped: model not ready");
     return;
   }
+  benchmarkReport = "";
   // The time of a dense int8 model does not depend on the input values, so
   // the benchmark uses whatever is in the input tensor.
   double sum = 0, sumSquares = 0;
@@ -477,36 +515,59 @@ void runBenchmark() {
   double variance = (sumSquares - BENCHMARK_RUNS * mean * mean) / (BENCHMARK_RUNS - 1);
   double deviation = variance > 0 ? sqrt(variance) : 0;
 
-  Serial.println("# BENCHMARK columns: name,used,total,percent (or name,value)");
-  Serial.print("BENCHMARK,runs,");
-  Serial.println(BENCHMARK_RUNS);
-  Serial.print("BENCHMARK,latency_mean_ms,");
-  Serial.println(mean, 4);
-  Serial.print("BENCHMARK,latency_std_ms,");
-  Serial.println(deviation, 4);
+  report("# BENCHMARK columns: name,used,total,percent (or name,value)");
+  report("# BENCHMARK time: " +
+         (isClockSet() ? formatLocalTime(localSeconds()) : String("TIME_NOT_SET")));
+  reportValue("runs", BENCHMARK_RUNS, 0);
+  reportValue("latency_mean_ms", mean, 4);
+  reportValue("latency_std_ms", deviation, 4);
   // CPU load of inference: one inference per grid step
-  Serial.print("BENCHMARK,cpu_load_percent_one_inference_per_step,");
-  Serial.println(100.0 * mean / (GRID_SECONDS * 1000.0), 6);
-  Serial.print("BENCHMARK,cpu_frequency_mhz,");
-  Serial.println(getCpuFrequencyMhz());
+  reportValue("cpu_load_percent_one_inference_per_step",
+              100.0 * mean / (GRID_SECONDS * 1000.0), 6);
+  reportValue("cpu_frequency_mhz", getCpuFrequencyMhz(), 0);
 
-  printPercent("tensor_arena_bytes", interpreter->arena_used_bytes(), TENSOR_ARENA_BYTES);
-  printPercent("model_bytes_of_flash", g_model_data_len, ESP.getFlashChipSize());
+  reportPercent("tensor_arena_bytes", interpreter->arena_used_bytes(), TENSOR_ARENA_BYTES);
+  reportPercent("model_bytes_of_flash", g_model_data_len, ESP.getFlashChipSize());
   // On the ESP32, getFreeSketchSpace() returns the full size of the program
   // partition (the space available for a sketch), not the unused part.
-  printPercent("sketch_bytes_of_app_partition", ESP.getSketchSize(),
-               ESP.getFreeSketchSpace());
-  printPercent("sketch_bytes_of_flash", ESP.getSketchSize(), ESP.getFlashChipSize());
-  printPercent("heap_used_peak_bytes", ESP.getHeapSize() - ESP.getMinFreeHeap(),
-               ESP.getHeapSize());
-  Serial.print("BENCHMARK,heap_min_free_bytes,");
-  Serial.println(ESP.getMinFreeHeap());
+  reportPercent("sketch_bytes_of_app_partition", ESP.getSketchSize(),
+                ESP.getFreeSketchSpace());
+  reportPercent("sketch_bytes_of_flash", ESP.getSketchSize(), ESP.getFlashChipSize());
+  reportPercent("heap_used_peak_bytes", ESP.getHeapSize() - ESP.getMinFreeHeap(),
+                ESP.getHeapSize());
+  reportValue("heap_min_free_bytes", ESP.getMinFreeHeap(), 0);
   // Stack of the task that runs loop(): the high-water mark is the smallest
   // amount of stack that has ever been free, so used = size - mark.
   unsigned long stackSize = getArduinoLoopTaskStackSize();
-  printPercent("stack_used_peak_bytes",
-               stackSize - uxTaskGetStackHighWaterMark(nullptr), stackSize);
-  Serial.println("# BENCHMARK done");
+  reportPercent("stack_used_peak_bytes",
+                stackSize - uxTaskGetStackHighWaterMark(nullptr), stackSize);
+
+  // ---- power (only if the INA219 answers on the I2C bus) ----
+  if (powerMeterReady) {
+    float idleMa, idleMw, activeMa, activeMw, volts;
+    measurePower(false, idleMa, idleMw, volts);
+    measurePower(true, activeMa, activeMw, volts);
+    reportValue("supply_voltage_v", volts, 3);
+    reportValue("current_idle_ma", idleMa, 2);
+    reportValue("power_idle_mw", idleMw, 2);
+    reportValue("current_inference_ma", activeMa, 2);
+    reportValue("power_inference_mw", activeMw, 2);
+    // energy = power x time:  mW x ms = microjoules;  / 1000 = millijoules
+    reportValue("energy_per_inference_mj", activeMw * mean / 1000.0, 6);
+  } else {
+    report("# BENCHMARK power not measured: INA219 not found on the I2C bus");
+  }
+  report("# BENCHMARK done");
+
+  // Keep the last report in the flash: when the node is powered through the
+  // INA219 there is no PC connected to read the serial port.
+  if (storageReady) {
+    File file = LittleFS.open(BENCHMARK_FILE_PATH, FILE_WRITE);  // overwrites
+    if (file) {
+      file.print(benchmarkReport);
+      file.close();
+    }
+  }
 }
 
 // Reads the next number of a text like "1.5,2;3 4": skips separators, then
@@ -586,6 +647,8 @@ void printStatus() {
   Serial.println(sensorReady ? "ok" : "not_ready");
   Serial.print("# STATUS model=");
   Serial.println(modelReady ? "ok" : "not_ready");
+  Serial.print("# STATUS power_meter=");
+  Serial.println(powerMeterReady ? "ok" : "not_found");
   Serial.print("# STATUS window_steps=");
   Serial.print(window.size());
   Serial.print("/");
@@ -646,13 +709,15 @@ void runCommand(String line) {
     Serial.println("# CLEAR done: readings and predictions deleted");
   } else if (upper == "BENCHMARK") {
     runBenchmark();
+  } else if (upper == "LASTBENCH") {
+    dumpFile(BENCHMARK_FILE_PATH, "LASTBENCH");
   } else if (upper.startsWith("VECTOR ")) {
     runVector(line.substring(7));
   } else if (upper.startsWith("WINDOW ")) {
     runWindow(line.substring(7));
   } else if (upper == "HELP") {
-    Serial.println("# Commands: SETTIME <epoch>, STATUS, PREDICT, DUMP, DUMPPRED, "
-                   "CLEAR, BENCHMARK, VECTOR <int8 values>, WINDOW <hour> <readings>, HELP");
+    Serial.println("# Commands: SETTIME <epoch>, STATUS, PREDICT, DUMP, DUMPPRED, CLEAR, "
+                   "BENCHMARK, LASTBENCH, VECTOR <int8 values>, WINDOW <hour> <readings>, HELP");
   } else {
     Serial.print("# ERROR: unknown command: ");
     Serial.println(line.substring(0, 40));
@@ -693,7 +758,17 @@ void setup() {
   syncClockWithNtp();
 #endif
 
+  powerMeterReady = ina219.begin(&Wire);  // false if no INA219 is connected
+
   printStatus();
+
+#if RUN_BENCHMARK_AT_BOOT
+  // Used to measure power: the node is powered through the INA219, without a
+  // PC, so nobody can type BENCHMARK. The report is read later with LASTBENCH.
+  delay(BENCHMARK_AT_BOOT_DELAY_MS);
+  runBenchmark();
+#endif
+
   lastSampleMs = millis() - SAMPLE_INTERVAL_MS;  // first reading right away
 }
 

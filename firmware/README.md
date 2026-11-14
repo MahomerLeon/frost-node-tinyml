@@ -17,6 +17,7 @@ Checked on 2026-11-12 by compiling for `esp32:esp32:esp32s3`.
 | arduino-cli | 1.5.1 |
 | Arduino-ESP32 core (`esp32:esp32`) | 3.3.12 |
 | Adafruit BME280 Library | 2.3.0 |
+| Adafruit INA219 (only for `inference/`, power measurement) | 1.2.3 |
 | Adafruit BusIO (dependency) | 1.17.4 |
 | Adafruit Unified Sensor (dependency) | 1.1.15 |
 | Chirale_TensorFLowLite (TensorFlow Lite Micro, only for `inference/`) | 2.0.0 |
@@ -31,7 +32,8 @@ this core version and add it to the table.
   (File > Preferences > Additional boards manager URLs:
   `https://espressif.github.io/arduino-esp32/package_esp32_index.json`)
 - Library Manager: install **Adafruit BME280 Library** (accept its
-  dependencies) and, for `inference/`, **Chirale_TensorFLowLite**.
+  dependencies) and, for `inference/`, **Adafruit INA219** and
+  **Chirale_TensorFLowLite**.
 - Tools menu:
 
   | Option | Value |
@@ -54,8 +56,10 @@ arduino-cli config init
 arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
 arduino-cli core install esp32:esp32@3.3.12
-arduino-cli lib install "Adafruit BME280 Library@2.3.0" "Chirale_TensorFLowLite@2.0.0"
+arduino-cli lib install "Adafruit BME280 Library@2.3.0" "Adafruit INA219@1.2.3" "Chirale_TensorFLowLite@2.0.0"
 ```
+
+How to wire the sensors, step by step: [docs/hardware_setup.md](../docs/hardware_setup.md).
 
 Connect the board with the connector labelled **UART**, with the 5 V charger
 disconnected (see `docs/wiring_diagram_esp32s3.png`), and find the port with
@@ -145,7 +149,8 @@ as the logger) and every prediction to `/predictions.csv` in the flash.
 | `DUMP` | prints `/log.csv`; `ml/serial_dump.py` works with this firmware too |
 | `DUMPPRED` | prints `/predictions.csv`; used by `scraper/node_listener.py` |
 | `CLEAR` | deletes both files |
-| `BENCHMARK` | times 200 inferences and prints latency mean/std, tensor arena, Flash, heap, stack and CPU load with percentages (R7) |
+| `BENCHMARK` | times 200 inferences and prints latency mean/std, tensor arena, Flash, heap, stack and CPU load with percentages (R7); with an INA219 connected it adds current, power and energy per inference. The report is also saved in the flash |
+| `LASTBENCH` | prints the last saved benchmark report (needed for the power measurement, which runs without a PC: see `docs/hardware_setup.md`) |
 | `VECTOR a,b,...` | runs the model on a raw int8 input |
 | `WINDOW <hour> t,h,p;...` | runs the whole preprocessing and the model on raw readings; nothing is stored |
 
@@ -170,8 +175,8 @@ It runs two checks: the model alone (`VECTOR`, expected
 uses 32-bit floats.
 
 Test status: `VECTOR` and `BENCHMARK` were verified on the board on
-2026-11-12. The flash storage, `DUMPPRED`, the stack measurement and the
-`WINDOW` check were added afterwards; they compile (467 926 bytes, 35 % of
-the program partition) but have **not been run on the board yet**.
+2026-11-12. The flash storage, `DUMPPRED`, the stack and power measurements,
+`LASTBENCH` and the `WINDOW` check were added afterwards; they compile but
+have **not been run on the board yet**.
 
-Not covered yet: power consumption (INA219) and the DS18B20 probe.
+Not covered yet: the DS18B20 probe and a firmware for the Raspberry Pi Pico.

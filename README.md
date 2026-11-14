@@ -49,27 +49,24 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 
 | Req. | What it asks | Folder | Status |
 |---|---|---|---|
-| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | pending |
-| R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | pending |
-| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | pending |
-| R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | pending |
-| R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | pending |
-| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `docs/` | pending |
+| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Code written; verified on the board with a placeholder model. Pending: real model |
+| R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | Code written and run as a pipeline test. Pending: real dataset, real F1 comparison |
+| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested. Pending: capture (no data yet) |
+| R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | Scraper and dashboard working with the real page. Pending: comparison with real node predictions |
+| R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | Both implemented, tested and documented |
+| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `docs/` | Benchmark written; Flash, RAM and latency verified with a placeholder model. Pending: power (INA219, not run yet), real model, Pico comparison |
 
-Work done so far (no requirement is complete yet):
+No requirement is complete yet. What blocks them:
 
-- Public IDEAM data downloaded, audited and cleaned (support data only).
-- `firmware/logger` (LittleFS log, clock, serial commands) tested on the
-  board. The sensors did not answer on the I2C bus, so every test row was a
-  `sensor_error` and no real data has been captured.
-- `ml/` scripts for dataset preparation, training, int8 conversion and
-  on-device validation are written and were run once as a pipeline test with
-  a placeholder threshold. No real dataset version or model exists.
-- `firmware/inference` is written; it needs a trained model to compile.
-- `scraper/` scrapes the HTML forecast of wttr.in for Tunja periodically,
-  stores it in an own hash table and shows it in a Streamlit dashboard. The
-  comparison with the node has only been tested with made-up predictions.
-
+- **Sensors:** the BME280 has not answered on the I2C bus yet, so there is no
+  reading from the node and no own data.
+- **Frost-risk threshold:** not decided, so no real dataset or model exists.
+  Everything in `ml/` and `firmware/inference` was checked with a placeholder
+  threshold in a temporary folder; those numbers are not results.
+- **Not run on the board yet:** flash storage of predictions, `WINDOW`
+  validation, stack and power measurement in `firmware/inference`.
+- **Not written:** firmware for the Raspberry Pi Pico and reading of the
+  DS18B20 probe.
 ## Open decisions
 
 - **Frost-risk threshold:** not decided. It is the parameter

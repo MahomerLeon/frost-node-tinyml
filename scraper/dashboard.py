@@ -8,10 +8,8 @@ It only reads files; it never changes data:
 - the predictions and readings written by scraper/node_listener.py
 - the risk threshold in ml/config.yaml
 
-How the comparison works: for each prediction of the node, the dashboard
-looks up (in the hash table) the forecast values that fall inside the next
-comparison_horizon_hours. If the lowest forecast value is at or below the
-threshold, the forecast "says risk". The two agree when the class is the same.
+The comparison itself (node class vs. forecast class) is in
+scraper/comparison.py; this file only shows the results.
 """
 
 import os
@@ -22,6 +20,7 @@ import pandas as pd
 import streamlit as st
 import yaml
 
+from comparison import compare
 from forecast_scraper import DEFAULT_CONFIG, REPO_DIR, load_config, load_forecast_table
 
 RECENT_HOURS = 48          # history shown in the temperature chart
@@ -40,49 +39,6 @@ def read_thresholds(config):
     return [float(t) for t in (ml_config["labeling"].get("thresholds_c") or [])]
 
 
-def forecast_in_window(table, config, start):
-    """Forecast temperatures after `start`, within the comparison horizon.
-
-    The forecast exists only at a few hours of the day, so the candidate
-    times are built and each one is looked up in the hash table: O(1) on
-    average per lookup.
-    """
-    end = start + timedelta(hours=config["comparison_horizon_hours"])
-    found = []
-    for day_offset in range(3):
-        day = (start + timedelta(days=day_offset)).date()
-        for hour in config["period_hours"].values():
-            moment = datetime(day.year, day.month, day.day, hour)
-            if start < moment <= end:
-                key = (config["municipality"], moment.strftime("%Y-%m-%d %H:%M"))
-                forecast = table.get(key)
-                if forecast is not None:
-                    found.append(forecast["temperature_c"])
-    return found
-
-
-def class_from_minimum(minimum, thresholds):
-    """Same rule as ml/prepare_dataset.py: thresholds at or above the minimum."""
-    return sum(minimum <= t for t in thresholds)
-
-
-def compare(predictions, table, config, thresholds):
-    """One row per node prediction with the forecast of its window."""
-    rows = []
-    for _, prediction in predictions.iterrows():
-        temperatures = forecast_in_window(table, config, prediction["time"])
-        row = {"node time": prediction["time"],
-               "node class": int(prediction["predicted_class"]),
-               "forecast minimum (C)": min(temperatures) if temperatures else None,
-               "forecast class": None, "result": "no forecast in the window"}
-        if temperatures and thresholds:
-            row["forecast class"] = class_from_minimum(min(temperatures), thresholds)
-            same = row["forecast class"] == row["node class"]
-            row["result"] = "agree" if same else "DISAGREE"
-        elif temperatures:
-            row["result"] = "threshold not set"
-        rows.append(row)
-    return pd.DataFrame(rows)
 
 
 def main():
