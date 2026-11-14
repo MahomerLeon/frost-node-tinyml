@@ -21,9 +21,32 @@ const unsigned long SAMPLE_INTERVAL_MINUTES = 5;
 const unsigned long SERIAL_BAUD_RATE = 115200;
 
 // ---- Clock ----
+// How the node gets the date and time:
+//   0 = serial command "SETTIME <epoch>"
+//   1 = NTP over Wi-Fi at boot. Needs a file secrets.h with the Wi-Fi name
+//       and password: copy secrets.example.h to secrets.h and edit it.
+//       secrets.h is listed in .gitignore and must never be committed.
+// The clock is LOST on reset or power loss. In the field without a PC, NTP
+// is the only way to recover it automatically.
+#define USE_WIFI_NTP 0
+
+const char NTP_SERVER[] = "pool.ntp.org";
+const unsigned long WIFI_TIMEOUT_MS = 15000;
+const unsigned long NTP_TIMEOUT_MS = 10000;
+
 // Local time zone (Colombia: UTC-5, no DST). Both values must agree.
 const long UTC_OFFSET_SECONDS = -5 * 3600;
 const char UTC_OFFSET_TEXT[] = "-05:00";
+
+// ---- Storage (flash, LittleFS) ----
+// Every reading, same format as firmware/logger:
+const char LOG_FILE_PATH[] = "/log.csv";
+const char LOG_FILE_HEADER[] =
+    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status";
+// One row per prediction (values of the newest 30 min step):
+const char PREDICTIONS_FILE_PATH[] = "/predictions.csv";
+const char PREDICTIONS_FILE_HEADER[] =
+    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,predicted_class,probabilities";
 
 // ---- TensorFlow Lite Micro ----
 // Memory reserved for the interpreter. Starting value chosen to be clearly
