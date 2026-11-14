@@ -133,23 +133,45 @@ arduino-cli monitor -p COM9 -c baudrate=115200
 The first compilation takes more than 10 minutes because the whole
 TensorFlow Lite Micro library is compiled; later ones are fast.
 
+This sketch also does the job of the logger, so in the field only this one
+is needed once a model exists: every reading goes to `/log.csv` (same format
+as the logger) and every prediction to `/predictions.csv` in the flash.
+
 | Command | Effect |
 |---|---|
 | `SETTIME <epoch>` | sets the clock; required, the model uses the hour of the day |
-| `STATUS` | clock, sensor, model, window fill and tensor arena used |
-| `PREDICT` | runs the model now on the current window |
-| `BENCHMARK` | times 200 inferences and prints latency mean/std, tensor arena, Flash, heap and CPU load with percentages (R7) |
-| `VECTOR a,b,...` | runs the model on a raw int8 input (used by `ml/validate_on_device.py`) |
+| `STATUS` | clock, sensor, model, window fill, rows stored and free flash |
+| `PREDICT` | runs the model now on the current window (not saved) |
+| `DUMP` | prints `/log.csv`; `ml/serial_dump.py` works with this firmware too |
+| `DUMPPRED` | prints `/predictions.csv`; used by `scraper/node_listener.py` |
+| `CLEAR` | deletes both files |
+| `BENCHMARK` | times 200 inferences and prints latency mean/std, tensor arena, Flash, heap, stack and CPU load with percentages (R7) |
+| `VECTOR a,b,...` | runs the model on a raw int8 input |
+| `WINDOW <hour> t,h,p;...` | runs the whole preprocessing and the model on raw readings; nothing is stored |
 
-Output lines: `STEP,...` when a 30 min step closes, `PREDICTION,<time>,class=<c>,p0=...,p1=...`
-after each step once the 3 h window is complete.
+Output lines: one CSV row per reading, `STEP,...` when a 30 min step closes,
+and `PREDICTION,<time>,class=<c>,p0=...,p1=...` after each step once the 3 h
+window is complete.
 
-Validate the node against the PC int8 model:
+Clock in the field: with `USE_WIFI_NTP 1` in `inference/config.h` (and a
+`secrets.h` copied from `secrets.example.h`) the clock is set from the
+network at every boot. Without Wi-Fi the clock is lost on a power cut and
+nothing is predicted until `SETTIME` is sent again.
+
+Validate the node against the PC:
 
 ```
 python ml/validate_on_device.py COM9
 ```
 
-Expected: `identical int8 output (node == PC): 100 of 100`.
+It runs two checks: the model alone (`VECTOR`, expected
+`identical int8 output (node == PC): 100 of 100`) and the whole preprocessing
+(`WINDOW`), where differences of 1 or 2 units are possible because the node
+uses 32-bit floats.
+
+Test status: `VECTOR` and `BENCHMARK` were verified on the board on
+2026-11-12. The flash storage, `DUMPPRED`, the stack measurement and the
+`WINDOW` check were added afterwards; they compile (467 926 bytes, 35 % of
+the program partition) but have **not been run on the board yet**.
 
 Not covered yet: power consumption (INA219) and the DS18B20 probe.

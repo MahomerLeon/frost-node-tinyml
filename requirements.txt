@@ -1,9 +1,8 @@
 # Python dependencies. Install them in a virtual environment (see README.md).
 #
-# Checked on 2026-11-12 with Python 3.13.17: tensorflow 2.21.0, pandas 3.1.1,
-# numpy 2.5.4, scikit-learn 1.9.1. Versions are not pinned here; to record the
-# exact versions of a working environment run
-#   python -m pip freeze > requirements.lock.txt
+# This file lists the packages the project needs, without versions.
+# The exact versions of the environment that was tested (Python 3.13.17) are
+# in requirements.lock.txt; install from that file to reproduce it exactly.
 
 # Data preparation and evaluation
 pandas
@@ -27,3 +26,6 @@ streamlit
 
 # Serial port access for ml/serial_dump.py and ml/validate_on_device.py
 pyserial
+
+# Automated tests (folder tests/)
+pytest

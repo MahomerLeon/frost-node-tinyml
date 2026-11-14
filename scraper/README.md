@@ -59,5 +59,6 @@ Tested on 2026-11-12: the scraper (real page, and a forced failure), the hash
 table self-test, and the dashboard with the real forecast. The comparison
 table was tested only with made-up node predictions and a placeholder
 threshold in a temporary folder, because no real predictions or threshold
-exist yet. `node_listener.py` was tested only on sample lines, not with the
-node.
+exist yet. `node_listener.py` (including the download of the predictions
+stored in the node) was tested only with a simulated node, not with the real
+one.

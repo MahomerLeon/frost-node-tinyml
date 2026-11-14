@@ -40,8 +40,9 @@ data/processed/        Clean tables and dataset versions (v1, v2, ...)
 ml/                    Data preparation, training, int8 conversion
 scraper/               Forecast scraping, hash table, dashboard
 docs/                  Capture protocol, resource measurements, diagrams
+tests/                 Automated tests (no board or sensors needed)
 ml/config.yaml         All parameters, including the frost-risk threshold
-requirements.txt       Python dependencies
+requirements.txt       Python dependencies (requirements.lock.txt: exact versions)
 ```
 
 ## Course requirements
@@ -108,3 +109,6 @@ listed in [firmware/README.md](firmware/README.md).
 
 5. Run the scraper, the node listener and the dashboard: see
    [scraper/README.md](scraper/README.md).
+
+To check the code without the board, run the automated tests: see
+[tests/README.md](tests/README.md).
