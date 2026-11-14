@@ -56,3 +56,18 @@ const int TENSOR_ARENA_BYTES = 16 * 1024;
 
 // Number of inferences timed by the BENCHMARK command (R7 asks for >= 100)
 const int BENCHMARK_RUNS = 200;
+
+// ---- Power measurement (INA219, optional) ----
+// The INA219 goes in series between the 5 V charger and the 5V pin of the
+// board (see docs/hardware_setup.md). If it does not answer on the I2C bus,
+// the benchmark simply skips the power lines.
+const uint8_t INA219_I2C_ADDRESS = 0x40;
+const int POWER_SAMPLES = 50;                       // readings averaged
+const unsigned long POWER_SAMPLE_PERIOD_MS = 20;    // time between readings
+
+// Set to 1 to run the benchmark automatically a few seconds after boot.
+// Needed to measure power, because then the node is powered by the charger
+// and no PC is connected. Read the saved report later with LASTBENCH.
+#define RUN_BENCHMARK_AT_BOOT 0
+const unsigned long BENCHMARK_AT_BOOT_DELAY_MS = 10000;
+const char BENCHMARK_FILE_PATH[] = "/benchmark.txt";

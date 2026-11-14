@@ -8,6 +8,7 @@ the Python of the virtual environment.
 | `forecast_scraper.py` | Scrapes the HTML forecast every `interval_minutes`, with retries and an error log (R5) |
 | `hash_table.py` | Own hash table with chaining, key (municipality, date_time) -> forecast (R6) |
 | `node_listener.py` | Saves the `PREDICTION` and `STEP` lines of the node to CSV files |
+| `comparison.py` | Compares each node prediction with the forecast of its time window, using the hash table |
 | `dashboard.py` | Streamlit dashboard: node prediction, forecast, disagreements, temperature history |
 
 ## Forecast source
