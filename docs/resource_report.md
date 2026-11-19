@@ -83,8 +83,9 @@ The more limited board is a Raspberry Pi Pico (RP2040: two Cortex-M0+ cores
 rated up to 133 MHz, 264 KB SRAM, 2 MB flash, no Wi-Fi; the benchmark prints
 the frequency actually used). `firmware/pico_benchmark`
 runs the same int8 model with the same `BENCHMARK` command and the same
-report names, so the two reports can be put side by side. The BME280 and the
-INA219 are moved from one board to the other (wiring in
+report names, so the two reports can be put side by side. The benchmark needs
+no sensor, so the Pico can run it while the ESP32-S3 keeps its sensors; the
+INA219 is moved to the Pico only to measure its power (wiring in
 [hardware_setup.md](hardware_setup.md), section 10).
 
 Differences in how the two boards are measured:

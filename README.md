@@ -13,6 +13,10 @@ Tunja"*.
   **BME280** sensor and classifies the frost risk **on the device** with a
   TensorFlow Lite int8 model (TFLite Micro).
 - An **INA219** measures the power consumption of the node.
+- A **DS18B20** probe gives a reference temperature, used only to calibrate
+  the BME280 (it is not a model input).
+- A **Raspberry Pi Pico (RP2040)** runs the same model only to compare its
+  resources with the ESP32-S3 (R7). It is not part of the field node.
 - A **Python module** periodically scrapes a weather forecast and shows it in a
   dashboard next to the prediction of the node, to validate one against the
   other.
@@ -21,22 +25,30 @@ Tunja"*.
 
 | Part | Connection |
 |---|---|
-| ESP32-S3 DevKitC-1 | main board |
+| ESP32-S3 DevKitC-1 (ESP32-S3-N16R8: 16 MB flash, 8 MB PSRAM) | main board |
 | BME280 | I2C address 0x76, SDA = GPIO8, SCL = GPIO9 |
 | INA219 | I2C address 0x40 (same bus) |
-| DS18B20 (optional) | data on GPIO4, 4.7 kOhm pull-up to 3V3 |
-| Raspberry Pi Pico (RP2040) | smaller board for the R7 comparison only; BME280 and INA219 moved to it (SDA = GP4, SCL = GP5) |
+| DS18B20 reference probe | 1-Wire data on GPIO4, 4.7 kOhm pull-up to 3V3; logged as `reference_temperature_c` |
+| Raspberry Pi Pico (RP2040) | R7 comparison only. Its benchmark needs no sensor, so it can be connected to the PC at the same time as the ESP32-S3; the INA219 is moved to it only to measure its power (SDA = GP4, SCL = GP5) |
 
-Wiring diagrams: [node with the ESP32-S3](docs/wiring_diagram_esp32s3.png)
-(labels in Spanish) and [Raspberry Pi Pico](docs/wiring_diagram_pico.png).
-Step-by-step guide: [docs/hardware_setup.md](docs/hardware_setup.md).
+Wiring diagrams:
+
+- [Complete current setup](docs/wiring_diagram_both.png): ESP32-S3 with BME280,
+  INA219 and DS18B20, and the Pico alone, both connected to the PC.
+- [Node with the ESP32-S3](docs/wiring_diagram_esp32s3.png) (labels in Spanish),
+  including the 5 V path of the INA219 to measure power.
+- [Raspberry Pi Pico](docs/wiring_diagram_pico.png) with the sensors moved to it.
+
+Step-by-step guide: [docs/hardware_setup.md](docs/hardware_setup.md). On the
+ESP32-S3 board the numbers printed next to the pins are GPIO names, not
+positions: GPIO8 (SDA) is the 12th pin and GPIO9 (SCL) the 15th of the left row.
 
 ## Repository layout
 
 ```
 firmware/logger/       Arduino sketch that logs sensor data (own dataset)
 firmware/inference/    Arduino sketch that runs the TFLite model on the node
-firmware/i2c_scan/     Wiring diagnostic (lists the I2C devices on the bus)
+firmware/i2c_scan/     Wiring check (lists the I2C devices and the 1-Wire probe)
 firmware/pico_benchmark/  Same model and benchmark on the Raspberry Pi Pico (R7)
 data/raw/              Raw data: node captures and public support data
 data/processed/        Clean tables and dataset versions (v1, v2, ...)
@@ -84,8 +96,9 @@ No requirement is complete yet. What blocks them:
 ## How to reproduce
 
 Tools used so far: Windows 11, Python 3.13.17 with TensorFlow 2.21.0,
-`arduino-cli` 1.5.1, Arduino-ESP32 core 3.3.12. Firmware library versions are
-listed in [firmware/README.md](firmware/README.md).
+`arduino-cli` 1.5.1, Arduino-ESP32 core 3.3.12, Raspberry Pi Pico core
+(`rp2040:rp2040`) 6.3.2. Firmware library versions are listed in
+[firmware/README.md](firmware/README.md).
 
 1. Create a Python 3.13 virtual environment **outside OneDrive** (TensorFlow
    has thousands of files that should not be synced) and install the
