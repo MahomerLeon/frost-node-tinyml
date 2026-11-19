@@ -45,8 +45,16 @@ threshold only to check that the code and the measurement work.
 | Heap, peak use | 49 268 of 369 936 bytes | 13.32 % |
 | Stack, power | not measured | — |
 
-The program has grown since then (flash storage, power meter). The size of
-the current version is in `firmware/README.md`.
+Same placeholder model, current firmware (flash storage and power meter
+added), measured on 2026-11-17 without sensors:
+
+| Metric | Value | Percentage |
+|---|---|---|
+| Latency, 200 runs | mean 0.050 ms, std 0.015 ms | — |
+| Program | 471 664 bytes | 35.99 % of the program partition; 2.81 % of the flash |
+| Heap, peak use | 52 192 of 369 488 bytes | 14.13 % |
+| Stack, peak use | 2 528 of 8 192 bytes | 30.86 % |
+| Power | not measured (no INA219 connected) | — |
 
 ## Final measurements
 
@@ -65,9 +73,41 @@ To fill in with the real model.
 | Energy per inference | | |
 | F1 on the device vs. float model | | |
 
-## Not oversizing the device
+## Not oversizing the device: ESP32-S3 vs. Raspberry Pi Pico
 
 The course criterion: under 30 % of Flash and RAM with latency far below what
 the application needs suggests trying a more limited device; over 80 %
-suggests a larger one or more optimization. The comparison with the
-Raspberry Pi Pico is pending: there is no firmware for it yet.
+suggests a larger one or more optimization.
+
+The more limited board is a Raspberry Pi Pico (RP2040: two Cortex-M0+ cores
+rated up to 133 MHz, 264 KB SRAM, 2 MB flash, no Wi-Fi; the benchmark prints
+the frequency actually used). `firmware/pico_benchmark`
+runs the same int8 model with the same `BENCHMARK` command and the same
+report names, so the two reports can be put side by side. The BME280 and the
+INA219 are moved from one board to the other (wiring in
+[hardware_setup.md](hardware_setup.md), section 10).
+
+Differences in how the two boards are measured:
+
+- RAM: on the Pico the core reports the heap in use, not its peak, and the
+  stack is not measured. Its percentage uses the 264 KB of SRAM.
+- Flash: on the Pico the program size comes from the end address of the
+  program in the flash (`__flash_binary_end`), over the 2 MB chip.
+- Power: on the Pico the INA219 is in series with `VSYS` instead of `5V`.
+- Wi-Fi: the Pico has none, so it could not set its clock by NTP or send
+  data without a PC. That is a functional reason in favour of the ESP32-S3
+  that does not depend on the measurements.
+
+| Metric | ESP32-S3 | Raspberry Pi Pico |
+|---|---|---|
+| Program size (% of flash) | | |
+| Model size | | |
+| Tensor arena | | |
+| RAM in use | | |
+| Latency (mean, std) | | |
+| Power idle / inferring | | |
+| Energy per inference | | |
+| Identical int8 output vs. PC (`validate_on_device.py`) | | |
+
+Not measured yet on either board with the real model; the Pico firmware has
+not been run on a real Pico.

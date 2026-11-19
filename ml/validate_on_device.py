@@ -17,6 +17,7 @@ The node must be running firmware/inference. Two checks are done:
 Run from the repository root (replace COM9 with the port of your board):
     python ml/validate_on_device.py COM9
     python ml/validate_on_device.py COM9 --config path/to/other_config.yaml
+    python ml/validate_on_device.py COM12 --model-only   # Raspberry Pi Pico
 """
 
 import argparse
@@ -150,6 +151,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("port")
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
+    parser.add_argument("--model-only", action="store_true",
+                        help="only the VECTOR check (use it for the Raspberry Pi "
+                             "Pico, whose firmware has no WINDOW command)")
     args = parser.parse_args()
     config = load_config(args.config)
 
@@ -158,7 +162,8 @@ def main():
         time.sleep(BOOT_WAIT_SECONDS)
         node.reset_input_buffer()
         check_model(node, config)
-        check_preprocessing(node, config)
+        if not args.model_only:
+            check_preprocessing(node, config)
 
 
 if __name__ == "__main__":

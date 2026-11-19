@@ -12,7 +12,9 @@ paths:
   zenodo_member: data/altiplano_frost_dataset_core_labeled.csv.gz
   output_dir: data/processed
   models_dir: ml/models                   # trained models and metrics
-  firmware_model_header: firmware/inference/model_data.h
+  firmware_model_headers:                 # every firmware that runs the model
+    - firmware/inference/model_data.h       # ESP32-S3 node
+    - firmware/pico_benchmark/model_data.h  # Raspberry Pi Pico (R7 comparison)
 
 # Which sources to include. "node" is the own dataset (R4); the other two are
 # public support data.

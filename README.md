@@ -25,9 +25,11 @@ Tunja"*.
 | BME280 | I2C address 0x76, SDA = GPIO8, SCL = GPIO9 |
 | INA219 | I2C address 0x40 (same bus) |
 | DS18B20 (optional) | data on GPIO4, 4.7 kOhm pull-up to 3V3 |
+| Raspberry Pi Pico (RP2040) | smaller board for the R7 comparison only; BME280 and INA219 moved to it (SDA = GP4, SCL = GP5) |
 
-Wiring diagram: [docs/wiring_diagram_esp32s3.png](docs/wiring_diagram_esp32s3.png)
-(the labels inside the image are in Spanish).
+Wiring diagrams: [node with the ESP32-S3](docs/wiring_diagram_esp32s3.png)
+(labels in Spanish) and [Raspberry Pi Pico](docs/wiring_diagram_pico.png).
+Step-by-step guide: [docs/hardware_setup.md](docs/hardware_setup.md).
 
 ## Repository layout
 
@@ -35,6 +37,7 @@ Wiring diagram: [docs/wiring_diagram_esp32s3.png](docs/wiring_diagram_esp32s3.pn
 firmware/logger/       Arduino sketch that logs sensor data (own dataset)
 firmware/inference/    Arduino sketch that runs the TFLite model on the node
 firmware/i2c_scan/     Wiring diagnostic (lists the I2C devices on the bus)
+firmware/pico_benchmark/  Same model and benchmark on the Raspberry Pi Pico (R7)
 data/raw/              Raw data: node captures and public support data
 data/processed/        Clean tables and dataset versions (v1, v2, ...)
 ml/                    Data preparation, training, int8 conversion
@@ -51,22 +54,24 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 |---|---|---|---|
 | R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Code written; verified on the board with a placeholder model. Pending: real model |
 | R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | Code written and run as a pipeline test. Pending: real dataset, real F1 comparison |
-| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested. Pending: capture (no data yet) |
+| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested; real BME280 readings verified on the board. Pending: capture in Pirgua (no data yet) |
 | R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | Scraper and dashboard working with the real page. Pending: comparison with real node predictions |
 | R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | Both implemented, tested and documented |
 | R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `docs/` | Benchmark written; Flash, RAM and latency verified with a placeholder model. Pending: power (INA219, not run yet), real model, Pico comparison |
 
 No requirement is complete yet. What blocks them:
 
-- **Sensors:** the BME280 has not answered on the I2C bus yet, so there is no
-  reading from the node and no own data.
+- **Capture:** the BME280 and the INA219 answer on the board (checked on
+  2026-11-17), but no field data has been captured yet.
 - **Frost-risk threshold:** not decided, so no real dataset or model exists.
   Everything in `ml/` and `firmware/inference` was checked with a placeholder
   threshold in a temporary folder; those numbers are not results.
-- **Not run on the board yet:** flash storage of predictions, `WINDOW`
-  validation, stack and power measurement in `firmware/inference`.
-- **Not written:** firmware for the Raspberry Pi Pico and reading of the
-  DS18B20 probe.
+- **Not run on the board yet:** a full 3 h window of real readings with a
+  prediction, the power measurement through the INA219, and the whole
+  `firmware/pico_benchmark`.
+- **Reference probe (DS18B20):** read by the firmware, but not tested with
+  the real probe yet.
+
 ## Open decisions
 
 - **Frost-risk threshold:** not decided. It is the parameter
