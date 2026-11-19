@@ -2,6 +2,7 @@
 
 | Document | Contents | Requirement |
 |---|---|---|
+| [IEEE_proposal_frost_node.pdf](IEEE_proposal_frost_node.pdf) | Project proposal, IEEE conference format, 3 pages | R8 |
 | [hardware_setup.md](hardware_setup.md) | How to connect every part, step by step, with a check after each step | — |
 | [wiring_diagram_esp32s3.png](wiring_diagram_esp32s3.png) | Wiring diagram of the node (labels in Spanish) | — |
 | [wiring_diagram_pico.png](wiring_diagram_pico.png) | Wiring diagram of the Raspberry Pi Pico used for the comparison | R7 |
