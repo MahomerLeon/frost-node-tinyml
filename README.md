@@ -7,6 +7,8 @@ Official title (Spanish): *"Nodo TinyML de bajo costo para la clasificación
 local del riesgo de helada y la validación de pronósticos en la vereda Pirgua,
 Tunja"*.
 
+Project proposal (IEEE format): [docs/IEEE_proposal_frost_node.pdf](docs/IEEE_proposal_frost_node.pdf).
+
 ## Description
 
 - An **ESP32-S3 DevKitC-1** reads temperature, humidity and pressure from a
