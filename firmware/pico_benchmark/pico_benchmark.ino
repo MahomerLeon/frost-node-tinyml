@@ -4,8 +4,10 @@
 // ESP32-S3 on a more limited board and measure the same resources, so the
 // two can be compared. The Pico is not part of the field node.
 //
-// The Pico and the ESP32-S3 are not used at the same time: the BME280 and
-// the INA219 are moved from one board to the other (docs/hardware_setup.md).
+// The benchmark and VECTOR need no sensor, so the Pico can run them while the
+// ESP32-S3 keeps the sensors. The same BME280 or INA219 is never connected to
+// both boards at once: they are moved to the Pico only to measure its power
+// or to use TEST and SAMPLE (docs/hardware_setup.md, section 10).
 //
 // Serial commands (one per line, 115200 baud, USB port of the Pico):
 //   STATUS      board, model, sensor and power meter state
