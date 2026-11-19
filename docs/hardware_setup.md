@@ -2,7 +2,9 @@
 
 Step-by-step wiring of the frost-risk node, with a software check after each
 step. The connections are the ones of the project wiring diagram
-([wiring_diagram_esp32s3.png](wiring_diagram_esp32s3.png)).
+([wiring_diagram_esp32s3.png](wiring_diagram_esp32s3.png)). The Raspberry Pi
+Pico used for the R7 comparison is in section 10
+([wiring_diagram_pico.png](wiring_diagram_pico.png)).
 
 Follow the order. Connect one module, check it, and only then add the next
 one: if something stops working, the last thing you connected is the cause.
@@ -15,6 +17,7 @@ one: if something stops working, the last thing you connected is the cause.
 | BME280 module | temperature, humidity, pressure (I2C) |
 | INA219 module | measures the current and power of the node (I2C) |
 | Temperature probe (only if it is a DS18B20) | reference temperature |
+| Raspberry Pi Pico (RP2040) and its micro-USB data cable | smaller board for the R7 comparison (section 10) |
 | Breadboard and jumper wires | connections |
 | USB-C **data** cable | programming and serial port |
 | 5 V wall charger (or power bank) | power for the power measurement and the field |
@@ -208,8 +211,27 @@ a DS18B20. Another kind of probe needs different wiring.
 Add the 4.7 kΩ resistor between the data wire (pin `4`) and `3V3`. Without
 it the probe does not answer.
 
-There is no firmware yet that reads the probe, so there is no software check
-for this step.
+Check: the wiring scanner also looks for the probe.
+
+```
+arduino-cli compile --fqbn esp32:esp32:esp32s3 -u -p COM9 firmware/i2c_scan
+arduino-cli monitor -p COM9 -c baudrate=115200
+```
+
+Expected, after the I2C lines:
+
+```
+# 1-Wire scan (DATA=GPIO4)
+FOUND 1-Wire 28xxxxxxxxxxxxxx family=0x28 (DS18B20)
+# 1-Wire devices found: 1
+```
+
+Family `0x28` confirms that the probe is a DS18B20. `devices found: 0` means
+the data wire or the 4.7 kΩ resistor is missing; `CRC ERROR` usually means
+a loose contact.
+
+Then, with the logger loaded, the command `TEST` prints the probe reading,
+and every row of the log has it in the column `reference_temperature_c`.
 
 ## 8. Using the node once it is wired
 
@@ -241,10 +263,75 @@ clock in the firmware README.
 | INA219 reads about 0 mA | the board is powered by the PC, or `Vin+` / `Vin-` are not in series with the supply |
 | Negative current | `Vin+` and `Vin-` are swapped |
 
-## 10. Not defined yet
+## 10. Raspberry Pi Pico (RP2040), for the R7 comparison
 
-- **Raspberry Pi Pico** (comparison for R7): no firmware or wiring has been
-  defined for it.
+The Pico is not part of the field node. It runs the same model to show that
+the ESP32-S3 is not oversized (R7).
+
+**Both boards at the same time.** The Pico benchmark (latency, flash, RAM,
+tensor arena) and its validation against the PC do not use any sensor. So
+the Pico can be connected to the PC by its micro-USB cable, with nothing
+else, while the ESP32-S3 keeps the sensors and its own USB cable. Each board
+gets its own COM port. Diagram:
+[wiring_diagram_both.png](wiring_diagram_both.png).
+
+The sensors are **moved** to the Pico only to measure its power (the INA219
+must be in its supply) or to run its `TEST` and `SAMPLE` commands. The same
+BME280 or INA219 is never connected to both boards at once: that would put
+two controllers on one I2C bus and join two 3.3 V supplies.
+
+Diagram with the sensors on the Pico: [wiring_diagram_pico.png](wiring_diagram_pico.png).
+
+On the Pico the pins are numbered 1 to 40 around the board (pin 1 is next to
+the USB connector, on the side of the label `GP0`). The table gives both the
+function label and the physical number; check them against the pinout printed
+on the back of your board.
+
+| From | Pico pin | Wire colour in the diagram |
+|---|---|---|
+| BME280 VCC, BME280 CSB, INA219 VCC | `3V3(OUT)`, pin 36 | red |
+| BME280 GND, BME280 SDO, INA219 GND | `GND`, pin 38 | black |
+| BME280 SDA, INA219 SDA | `GP4`, pin 6 | blue |
+| BME280 SCL, INA219 SCL | `GP5`, pin 7 | yellow |
+| Charger +5 V | INA219 `Vin+` | orange |
+| INA219 `Vin-` | `VSYS`, pin 39 | orange |
+| Charger GND | `GND`, pin 28 (any GND pin) | black |
+
+Notes:
+
+- **Never connect a sensor to `VBUS` (pin 40) or `VSYS` (pin 39).** Those
+  carry up to 5 V. The sensors go to `3V3(OUT)`.
+- The Pico accepts its supply on `VSYS` (from 1.8 to 5.5 V according to the
+  Raspberry Pi Pico datasheet), so the 5 V of the charger goes there through
+  the INA219. Do not connect the USB cable at the same time.
+- The Pico has no `UART` / `USB` choice: it has one micro-USB connector, used
+  for programming and for the serial port.
+
+Check, with the USB cable connected and the charger disconnected:
+
+```
+arduino-cli compile --fqbn rp2040:rp2040:rpipico:flash=2097152_65536 --build-property "compiler.cpp.extra_flags=-include stdint.h" -u -p COM12 firmware/pico_benchmark
+arduino-cli monitor -p COM12 -c baudrate=115200
+```
+
+Replace `COM12` with the port of the Pico (`arduino-cli board list`). The very
+first upload may need the BOOTSEL method: unplug the Pico, hold the `BOOTSEL`
+button, plug it in, release the button, and upload again. `firmware/pico_benchmark`
+needs `model_data.h`, which is created by `python ml/convert_tflite.py`,
+and the extra compiler option explained in `firmware/README.md`.
+
+Type `STATUS`. Expected: `sensor=ok` and `power_meter=ok`. Type `TEST`.
+Expected: `# TEST OK: the sensor is a BME280`.
+
+Power measurement on the Pico is the same as on the ESP32-S3 (section 6):
+set `RUN_BENCHMARK_AT_BOOT 1` in `firmware/pico_benchmark/config.h`, upload,
+power the Pico through the INA219 for one minute, reconnect the USB cable and
+type `LASTBENCH`.
+
+None of these steps has been run on a real Pico yet.
+
+## 11. Not defined yet
+
 - **How the charger wires reach the INA219** (breakout or cut cable).
 - **Field enclosure**: box, sun shield and the 1.5 m mounting height are in
   [capture_protocol.md](capture_protocol.md).

@@ -6,7 +6,8 @@ Code that runs on the ESP32-S3 DevKitC-1.
 |---|---|
 | `logger/` | Logs BME280 readings to the flash memory as CSV (own dataset, R4) |
 | `inference/` | Runs the TFLite int8 model on the node (R2), circular buffer (R6), benchmark (R7) |
-| `i2c_scan/` | Wiring diagnostic: lists the I2C devices that answer on the bus |
+| `i2c_scan/` | Wiring diagnostic: lists the I2C devices and the 1-Wire probe that answer |
+| `pico_benchmark/` | Raspberry Pi Pico (RP2040): runs the same model and benchmark, to compare with the ESP32-S3 (R7) |
 
 ## Toolchain and library versions
 
@@ -18,10 +19,13 @@ Checked on 2026-11-12 by compiling for `esp32:esp32:esp32s3`.
 | Arduino-ESP32 core (`esp32:esp32`) | 3.3.12 |
 | Adafruit BME280 Library | 2.3.0 |
 | Adafruit INA219 (only for `inference/`, power measurement) | 1.2.3 |
+| OneWire (reference probe, `logger/`, `inference/`, `i2c_scan/`) | 2.3.8 |
+| DallasTemperature (reference probe, `logger/`, `inference/`) | 4.0.6 |
 | Adafruit BusIO (dependency) | 1.17.4 |
 | Adafruit Unified Sensor (dependency) | 1.1.15 |
 | Chirale_TensorFLowLite (TensorFlow Lite Micro, only for `inference/`) | 2.0.0 |
 | LittleFS, Wire, WiFi | included in the core |
+| Raspberry Pi Pico core (`rp2040:rp2040`, by Earle Philhower), only for `pico_benchmark/` | 6.3.2 |
 
 Before adding any other library, check that it compiles for the ESP32-S3 with
 this core version and add it to the table.
@@ -56,7 +60,15 @@ arduino-cli config init
 arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 arduino-cli core update-index
 arduino-cli core install esp32:esp32@3.3.12
-arduino-cli lib install "Adafruit BME280 Library@2.3.0" "Adafruit INA219@1.2.3" "Chirale_TensorFLowLite@2.0.0"
+arduino-cli lib install "Adafruit BME280 Library@2.3.0" "Adafruit INA219@1.2.3" "Chirale_TensorFLowLite@2.0.0" "OneWire@2.3.8" "DallasTemperature@4.0.6"
+```
+
+For the Raspberry Pi Pico, also:
+
+```
+arduino-cli config add board_manager.additional_urls https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+arduino-cli core update-index
+arduino-cli core install rp2040:rp2040@6.3.2
 ```
 
 How to wire the sensors, step by step: [docs/hardware_setup.md](../docs/hardware_setup.md).
@@ -94,13 +106,18 @@ Type a command in the monitor and press Enter:
 | `STATUS` | rows saved, flash used and free, current time, sensor state |
 | `DUMP` | prints the whole CSV between `# DUMP BEGIN` and `# DUMP END` |
 | `CLEAR` | deletes all saved rows |
-| `TEST` | checks the chip ID and warns if the sensor is not a BME280 |
+| `TEST` | checks the chip ID (warns if the sensor is not a BME280) and whether the probe answers |
 | `SAMPLE` | takes one extra reading right now |
 
 Behaviour to know:
 
 - Each reading is printed as a CSV row and appended to `/log.csv` in the
-  flash: `timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status`.
+  flash:
+  `timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status`.
+  `reference_temperature_c` is the DS18B20 probe (`nan` if it is not connected).
+- A log written by the previous firmware (without the probe column) is kept:
+  the logger asks to download it with `DUMP` and then `CLEAR` it. An empty one
+  is simply restarted with the new columns.
 - An invalid reading (NaN or outside the BME280 datasheet ranges) is saved
   with status `sensor_error`; the program continues and retries the sensor.
 - While the clock is not set, readings are printed but **not saved**.
@@ -119,9 +136,10 @@ python ml/serial_dump.py COM9
 Expected: `# SETTIME done: <time>` and
 `Saved <n> data rows to ...\data\raw\node\node_log_<date>_<time>.csv`.
 
-Tested on the board on 2026-11-12 **without a sensor answering on the I2C
-bus**: every command works and rows are saved as `sensor_error`. Real sensor
-readings have not been verified yet.
+Tested on the board: on 2026-11-12 without sensors (rows saved as
+`sensor_error`), and on 2026-11-17 with the BME280 connected: `i2c_scan` found
+`0x40` (INA219) and `0x76` with chip ID `0x60` (a real BME280), and `SAMPLE`,
+`STATUS` and `DUMP` gave valid rows (indoors: about 21.6 °C, 49.7 %, 739.5 hPa).
 
 ## `inference`
 
@@ -174,9 +192,94 @@ It runs two checks: the model alone (`VECTOR`, expected
 (`WINDOW`), where differences of 1 or 2 units are possible because the node
 uses 32-bit floats.
 
-Test status: `VECTOR` and `BENCHMARK` were verified on the board on
-2026-11-12. The flash storage, `DUMPPRED`, the stack and power measurements,
-`LASTBENCH` and the `WINDOW` check were added afterwards; they compile but
-have **not been run on the board yet**.
+Test status, on the board with the placeholder model and **without
+sensors** (2026-11-17):
 
-Not covered yet: the DS18B20 probe and a firmware for the Raspberry Pi Pico.
+- Verified: `STATUS`, `CLEAR`, `DUMP`, `DUMPPRED`, `BENCHMARK` (including the
+  stack), `LASTBENCH` after a reset, and `RUN_BENCHMARK_AT_BOOT`.
+- `ml/validate_on_device.py`: 100 of 100 identical outputs with `VECTOR` and
+  50 of 50 with `WINDOW`, so the preprocessing of the node gives exactly the
+  same model input as the Python code.
+- 2026-11-17, with the sensors connected: `STATUS` shows `sensor=ok` and
+  `power_meter=ok`, and the benchmark prints its power lines. They read about
+  0 mA because the board was powered by USB, not through the INA219.
+- Not verified yet: a complete 3 h window with real readings (the first
+  prediction needs 3 hours of data) and a real power measurement through the
+  INA219.
+
+Reference probe (DS18B20 on GPIO4): read by `logger/` and `inference/` into the
+column `reference_temperature_c`, only to calibrate the BME280; the model does
+not use it. It compiles; it has **not been tested with the real probe yet**.
+
+## `pico_benchmark` (Raspberry Pi Pico, RP2040)
+
+Runs the same int8 model as `inference/` on a more limited board, to show
+whether the ESP32-S3 is oversized (R7). It only benchmarks: it does not log
+data or predict in the field. Wiring: section 10 of
+[docs/hardware_setup.md](../docs/hardware_setup.md).
+
+Needs `pico_benchmark/model_data.h`, written by `python ml/convert_tflite.py`
+together with the one of `inference/`.
+
+Arduino IDE (Tools menu):
+
+| Option | Value |
+|---|---|
+| Board | Raspberry Pi Pico (in the "Raspberry Pi Pico/RP2040/RP2350" section) |
+| Flash Size | 2MB (Sketch: 1984KB, FS: 64KB), so `LASTBENCH` can keep the report |
+| Port | the port of the Pico |
+
+**Extra compiler option.** The TensorFlow Lite Micro library
+(Chirale_TensorFLowLite 2.0.0, the same one as on the ESP32-S3) does not
+compile on the RP2040 core as it is: its latbuffers part omits
+#include <cstdint> when it detects Arduino, and this core compiles with
+C++23, which no longer adds that header indirectly. The fix is the compiler
+option -include stdint.h; the library itself is not modified. The
+	flm_cortexm library was also tried and has the same problem.
+
+- arduino-cli: add --build-property "compiler.cpp.extra_flags=-include stdint.h"
+  (already in the command below).
+- Arduino IDE: create a text file named platform.local.txt in
+  %LOCALAPPDATA%\Arduino15\packages\rp2040\hardware\rp2040\6.3.2\ with this
+  single line, and restart the IDE:
+
+  `
+  compiler.cpp.extra_flags=-include stdint.h
+  `
+
+  It applies to every sketch compiled for RP2040 boards and does no harm to
+  sketches that do not need it.
+
+Compiled on 2026-11-17 with the placeholder model: 138 564 bytes of program
+(6 % of the 2 027 520 bytes available) and 26 804 bytes of global variables
+(10 % of 262 144).
+
+arduino-cli (replace `COM12` with the port of the Pico):
+
+```
+arduino-cli compile --fqbn rp2040:rp2040:rpipico:flash=2097152_65536 --build-property "compiler.cpp.extra_flags=-include stdint.h" -u -p COM12 firmware/pico_benchmark
+arduino-cli monitor -p COM12 -c baudrate=115200
+```
+
+The first upload may need BOOTSEL: unplug the Pico, hold its `BOOTSEL`
+button, plug it in, release the button and upload again.
+
+| Command | Effect |
+|---|---|
+| `STATUS` | model, sensor, power meter and storage state |
+| `TEST` | checks the chip ID of the BME280 |
+| `SAMPLE` | reads the BME280 once |
+| `BENCHMARK` | same report as on the ESP32-S3 (latency, tensor arena, flash, RAM, power) |
+| `LASTBENCH` | last report saved in the flash |
+| `VECTOR a,b,...` | runs the model on a raw int8 input |
+
+Check that the Pico gives the same result as the PC:
+
+```
+python ml/validate_on_device.py COM12 --model-only
+```
+
+Expected: `identical int8 output (node == PC): 100 of 100`.
+
+Test status: the sketch compiles (see below); it has **not been run on a real
+Pico yet**.

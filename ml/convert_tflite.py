@@ -6,8 +6,9 @@ Run from the repository root, after ml/train.py:
 Output (N = dataset_version):
     ml/models/model_vN.tflite          int8 model
     ml/models/metrics_vN_int8.json     float vs int8 on the same test split
-    ml/models/test_vectors_vN.csv      test rows to validate on the ESP32-S3
-    firmware/inference/model_data.h    C array + preprocessing constants
+    ml/models/test_vectors_vN.csv      test rows to validate on the devices
+    firmware/inference/model_data.h       C array + preprocessing constants
+    firmware/pico_benchmark/model_data.h  the same file, for the Pico
 
 Design decisions:
 - Full integer quantization: weights, activations, input and output are all
@@ -191,10 +192,13 @@ def main():
     np.savetxt(folder / f"test_vectors_v{version}.csv", rows, fmt="%d",
                delimiter=",", header=",".join(header), comments="")
 
-    header_file = REPO_DIR / config["paths"]["firmware_model_header"]
-    write_header(header_file, model_bytes, preprocessing, config)
     print(f"\nsaved: {tflite_file}")
-    print(f"saved: {header_file}")
+    # The same header goes to every firmware that runs the model
+    # (ESP32-S3 node and Raspberry Pi Pico benchmark)
+    for path in config["paths"]["firmware_model_headers"]:
+        header_file = REPO_DIR / path
+        write_header(header_file, model_bytes, preprocessing, config)
+        print(f"saved: {header_file}")
     print(f"saved: {n_vectors} test vectors for the device")
 
 

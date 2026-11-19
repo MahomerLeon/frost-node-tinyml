@@ -38,11 +38,16 @@ const unsigned long NTP_TIMEOUT_MS = 10000;
 const long UTC_OFFSET_SECONDS = -5 * 3600;
 const char UTC_OFFSET_TEXT[] = "-05:00";
 
+// ---- Reference temperature probe (DS18B20 on 1-Wire, optional) ----
+// Same as in firmware/logger: only for calibration, not a model input.
+#define USE_REFERENCE_PROBE 1
+const int ONE_WIRE_PIN = 4;
+
 // ---- Storage (flash, LittleFS) ----
 // Every reading, same format as firmware/logger:
 const char LOG_FILE_PATH[] = "/log.csv";
 const char LOG_FILE_HEADER[] =
-    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status";
+    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status";
 // One row per prediction (values of the newest 30 min step):
 const char PREDICTIONS_FILE_PATH[] = "/predictions.csv";
 const char PREDICTIONS_FILE_HEADER[] =

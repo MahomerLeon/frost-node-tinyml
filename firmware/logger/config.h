@@ -37,10 +37,18 @@ const unsigned long NTP_TIMEOUT_MS = 10000;
 const long UTC_OFFSET_SECONDS = -5 * 3600;
 const char UTC_OFFSET_TEXT[] = "-05:00";
 
+// ---- Reference temperature probe (DS18B20 on 1-Wire, optional) ----
+// Used only to calibrate the BME280 (see docs/capture_protocol.md); the
+// model does not use it. If no probe answers, the column is written as nan.
+// Set to 0 to stop reading it.
+#define USE_REFERENCE_PROBE 1
+const int ONE_WIRE_PIN = 4;
+
 // ---- Storage ----
+// status refers to the BME280 only; the probe has its own column.
 const char LOG_FILE_PATH[] = "/log.csv";
 const char LOG_FILE_HEADER[] =
-    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status";
+    "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status";
 
 // ---- Valid ranges ----
 // Measurement limits of the BME280 taken from its datasheet. A reading

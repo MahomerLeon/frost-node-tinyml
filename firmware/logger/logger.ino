@@ -1,10 +1,13 @@
 // Data logger firmware for the frost-risk node (ESP32-S3 DevKitC-1).
 //
-// Every SAMPLE_INTERVAL_MINUTES it reads the BME280 and appends one CSV row
-// to a file in the flash memory (LittleFS):
-//   timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status
-// status is "ok" or "sensor_error". The program never stops on a sensor
-// failure: the row is saved as sensor_error and the sensor is retried later.
+// Every SAMPLE_INTERVAL_MINUTES it reads the BME280 and the reference probe
+// (DS18B20, optional) and appends one CSV row to a file in the flash memory
+// (LittleFS):
+//   timestamp_iso,temperature_c,humidity_pct,pressure_hpa,
+//   reference_temperature_c,status
+// status is "ok" or "sensor_error" and refers to the BME280. The program
+// never stops on a sensor failure: the row is saved as sensor_error and the
+// sensor is retried later. A missing probe only writes nan in its column.
 //
 // Serial commands (one per line, 115200 baud):
 //   SETTIME <epoch>  set the clock (seconds since 1970-01-01 UTC)
@@ -12,6 +15,7 @@
 //   DUMP             print the whole CSV file
 //   CLEAR            delete all saved rows
 //   TEST             check the sensor chip ID (0x60 BME280, 0x58 BMP280)
+//                    and whether the reference probe answers
 //   SAMPLE           take one extra reading right now
 //   HELP             list the commands
 //
@@ -26,6 +30,13 @@
 #include <Adafruit_BME280.h>
 
 #include "config.h"
+
+#if USE_REFERENCE_PROBE
+#include <OneWire.h>
+#include <DallasTemperature.h>
+OneWire oneWire(ONE_WIRE_PIN);
+DallasTemperature probe(&oneWire);
+#endif
 
 #if USE_WIFI_NTP
 #include <WiFi.h>
@@ -164,12 +175,69 @@ bool isInRange(float value, float minimum, float maximum) {
   return value >= minimum && value <= maximum;
 }
 
+// Reads the reference probe. Returns NAN if it is disabled or does not answer.
+float readReferenceC() {
+#if USE_REFERENCE_PROBE
+  probe.requestTemperatures();  // waits for the conversion (up to 0.75 s)
+  float value = probe.getTempCByIndex(0);
+  // DEVICE_DISCONNECTED_C (-127) means no probe. 85.0 is the value a DS18B20
+  // returns after power-on before any real conversion, so it is not trusted.
+  if (value == DEVICE_DISCONNECTED_C || value == 85.0f ||
+      !isInRange(value, -55.0f, 125.0f)) {
+    return NAN;
+  }
+  return value;
+#else
+  return NAN;
+#endif
+}
+
+// Test mode for the probe: how many 1-Wire temperature probes answer.
+void testProbe() {
+#if USE_REFERENCE_PROBE
+  probe.begin();  // searches the 1-Wire bus again
+  int count = probe.getDeviceCount();
+  Serial.print("# TEST reference probes on GPIO");
+  Serial.print(ONE_WIRE_PIN);
+  Serial.print(": ");
+  Serial.println(count);
+  if (count == 0) {
+    Serial.println("# TEST probe not found: check the wiring and the 4.7 kOhm resistor");
+  } else {
+    Serial.print("# TEST probe reading (C): ");
+    Serial.println(readReferenceC(), 2);
+  }
+#else
+  Serial.println("# TEST reference probe disabled (USE_REFERENCE_PROBE 0)");
+#endif
+}
+
 // -------------------------------------------------------------- storage ----
 
+unsigned long countSavedRows();
+
 // Creates the CSV file with its header if it does not exist.
+// If the file was written by an older firmware with other columns:
+//   - with no data rows, it is simply started again with the new header;
+//   - with data rows, it is kept untouched and a warning asks to download it
+//     (DUMP) and then empty it (CLEAR), so no data is lost.
 void createLogFileIfMissing() {
   if (LittleFS.exists(LOG_FILE_PATH)) {
-    return;
+    File file = LittleFS.open(LOG_FILE_PATH, FILE_READ);
+    String header = file ? file.readStringUntil('\n') : String("");
+    if (file) {
+      file.close();
+    }
+    header.trim();
+    if (header == LOG_FILE_HEADER) {
+      return;
+    }
+    if (countSavedRows() > 0) {
+      Serial.println("# WARNING: the log has the columns of an older firmware.");
+      Serial.println("# Download it with DUMP, then send CLEAR to start the new format.");
+      return;
+    }
+    LittleFS.remove(LOG_FILE_PATH);
   }
   File file = LittleFS.open(LOG_FILE_PATH, FILE_WRITE);
   if (file) {
@@ -228,10 +296,13 @@ void takeSample() {
     sensorReady = false;  // start the sensor again before the next reading
   }
 
+  float referenceC = readReferenceC();
+
   String row = currentTimestamp() + "," +
                String(temperatureC, 2) + "," +
                String(humidityPct, 2) + "," +
                String(pressureHpa, 2) + "," +
+               String(referenceC, 2) + "," +
                (valid ? "ok" : "sensor_error");
   Serial.println(row);
 
@@ -316,6 +387,7 @@ void runCommand(String line) {
     clearLogFile();
   } else if (upper == "TEST") {
     testSensor();
+    testProbe();
   } else if (upper == "SAMPLE") {
     takeSample();  // extra reading right now, useful to test without waiting
   } else if (upper == "HELP") {
@@ -350,6 +422,7 @@ void setup() {
   if (testSensor()) {
     startSensor();
   }
+  testProbe();  // also starts the probe library
 
   // true = format the flash partition the first time it is used
   storageReady = LittleFS.begin(true);

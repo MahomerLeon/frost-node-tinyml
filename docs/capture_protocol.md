@@ -21,7 +21,8 @@ below come from the project plan; items marked "to confirm" are still open.
 | Sampling interval | Every 5 minutes (`SAMPLE_INTERVAL_MINUTES` in the firmware `config.h`). Starting value, configurable |
 | Sensor mode | Forced mode, oversampling x1, filter off: the sensor sleeps between readings to avoid self-heating |
 | Timestamp | Local time (UTC-5) written with its offset, for example `2026-11-12T21:30:00-05:00` |
-| Stored row | `timestamp_iso,temperature_c,humidity_pct,pressure_hpa,status` in `/log.csv` (flash memory, LittleFS) |
+| Stored row | `timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status` in `/log.csv` (flash memory, LittleFS) |
+| Reference probe | DS18B20 on GPIO4, read at every reading into `reference_temperature_c` (`nan` if absent). Only for calibration: the model does not use it |
 | Invalid readings | NaN or outside the BME280 datasheet range (-40 to 85 °C, 0 to 100 %, 300 to 1100 hPa) are stored with status `sensor_error` and excluded later |
 
 ## Clock
@@ -44,6 +45,10 @@ Which of the two will be used is to confirm.
    temperature.
 3. Write down the offset between the two in this document. Do not correct
    the raw files: any correction is applied when the dataset is built.
+
+The comparison is computed by `python ml/calibration_report.py` (offset =
+BME280 minus probe: mean, standard deviation, minimum and maximum). Use
+`--start` and `--end` to keep only the hours of one test.
 
 Result: not done yet.
 

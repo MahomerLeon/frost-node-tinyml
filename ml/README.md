@@ -15,6 +15,7 @@ with the Python of the virtual environment (see the main README).
 | `train.py` | Trains the float model and reports F1, confusion matrix, precision and recall |
 | `convert_tflite.py` | Converts to TFLite int8, compares F1 with the float model (R3), writes `firmware/inference/model_data.h` |
 | `validate_on_device.py` | Compares the ESP32-S3 with the PC int8 model: the model alone (quantized test vectors) and the whole preprocessing (raw test windows); reports F1 on the device |
+| `calibration_report.py` | Offset between the BME280 and the reference probe (DS18B20), for the calibration of the capture protocol |
 | `dataset_utils.py` | Helpers shared by the scripts above |
 
 ## Order of use
