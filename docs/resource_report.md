@@ -79,9 +79,10 @@ The course criterion: under 30 % of Flash and RAM with latency far below what
 the application needs suggests trying a more limited device; over 80 %
 suggests a larger one or more optimization.
 
-The more limited board is a Raspberry Pi Pico (RP2040: two Cortex-M0+ cores
-rated up to 133 MHz, 264 KB SRAM, 2 MB flash, no Wi-Fi; the benchmark prints
-the frequency actually used). `firmware/pico_benchmark`
+The more limited board is a Raspberry Pi Pico (RP2040: two Cortex-M0+ cores,
+264 KB SRAM, 2 MB flash, no Wi-Fi). The RP2040 core 6.3.2 runs it at 200 MHz
+by default, as the benchmark reported; the Arduino option "CPU Speed" can set
+another frequency if the comparison needs it. `firmware/pico_benchmark`
 runs the same int8 model with the same `BENCHMARK` command and the same
 report names, so the two reports can be put side by side. The benchmark needs
 no sensor, so the Pico can run it while the ESP32-S3 keeps its sensors; the
@@ -99,6 +100,31 @@ Differences in how the two boards are measured:
   data without a PC. That is a functional reason in favour of the ESP32-S3
   that does not depend on the measurements.
 
+### Pipeline test on both boards (not a project result)
+
+Measured on 2026-11-20 with the same **placeholder model** on both boards
+(20 inputs, hidden layers of 16 and 8 units, 2 classes), both connected to
+the PC at the same time. Power was not measured: the INA219 was not in the
+supply path of either board.
+
+| Metric | ESP32-S3 (240 MHz) | Raspberry Pi Pico (200 MHz) |
+|---|---|---|
+| Latency, 200 runs | mean 0.0504 ms, std 0.0161 ms | mean 0.0871 ms, std 0.0218 ms |
+| Tensor arena used | 876 B (5.35 % of 16 384 B reserved) | 964 B (5.88 % of 16 384 B reserved) |
+| Model | 3 152 B (0.02 % of 16 MB flash) | 3 152 B (0.15 % of 2 MB flash) |
+| Program | 476 272 B (2.84 % of flash; 36.34 % of the program partition) | 155 800 B (7.43 % of flash) |
+| RAM | heap peak 52 296 of 368 408 B (14.20 %) | heap in use 2 276 of 235 332 B (0.97 %) |
+| Identical int8 output vs. PC | 100 of 100 (`VECTOR`), 50 of 50 (`WINDOW`) | 100 of 100 (`VECTOR`) |
+
+The two programs are not equivalent: the ESP32-S3 firmware also reads the
+sensors, logs to the flash and can use Wi-Fi, while the Pico firmware only
+runs the benchmark. Compare the model rows (latency, tensor arena) directly,
+and the program and RAM rows with that in mind.
+
+### Final comparison
+
+To fill in with the real model.
+
 | Metric | ESP32-S3 | Raspberry Pi Pico |
 |---|---|---|
 | Program size (% of flash) | | |
@@ -109,6 +135,3 @@ Differences in how the two boards are measured:
 | Power idle / inferring | | |
 | Energy per inference | | |
 | Identical int8 output vs. PC (`validate_on_device.py`) | | |
-
-Not measured yet on either board with the real model; the Pico firmware has
-not been run on a real Pico.

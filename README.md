@@ -71,7 +71,7 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 | R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested; real BME280 readings verified on the board. Pending: capture in Pirgua (no data yet) |
 | R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | Scraper and dashboard working with the real page. Pending: comparison with real node predictions |
 | R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | Both implemented, tested and documented |
-| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `docs/` | Benchmark written; Flash, RAM and latency verified with a placeholder model. Pending: power (INA219, not run yet), real model, Pico comparison |
+| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `firmware/pico_benchmark/`, `docs/` | Benchmark verified on the ESP32-S3 and the Raspberry Pi Pico with a placeholder model (see `docs/resource_report.md`). Pending: power (INA219), real model |
 
 No requirement is complete yet. What blocks them:
 
@@ -81,8 +81,7 @@ No requirement is complete yet. What blocks them:
   Everything in `ml/` and `firmware/inference` was checked with a placeholder
   threshold in a temporary folder; those numbers are not results.
 - **Not run on the board yet:** a full 3 h window of real readings with a
-  prediction, the power measurement through the INA219, and the whole
-  `firmware/pico_benchmark`.
+  prediction, and the power measurement through the INA219 on either board.
 - **Calibration:** the DS18B20 probe works on the board (checked on
   2026-11-20), but the calibration against the BME280 has not been done.
 
