@@ -83,8 +83,8 @@ No requirement is complete yet. What blocks them:
 - **Not run on the board yet:** a full 3 h window of real readings with a
   prediction, the power measurement through the INA219, and the whole
   `firmware/pico_benchmark`.
-- **Reference probe (DS18B20):** read by the firmware, but not tested with
-  the real probe yet.
+- **Calibration:** the DS18B20 probe works on the board (checked on
+  2026-11-20), but the calibration against the BME280 has not been done.
 
 ## Open decisions
 

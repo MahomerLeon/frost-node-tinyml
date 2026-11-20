@@ -209,7 +209,8 @@ sensors** (2026-11-17):
 
 Reference probe (DS18B20 on GPIO4): read by `logger/` and `inference/` into the
 column `reference_temperature_c`, only to calibrate the BME280; the model does
-not use it. It compiles; it has **not been tested with the real probe yet**.
+not use it. Tested on 2026-11-20: `i2c_scan` found it with family code `0x28`
+(a DS18B20), and `TEST` and `SAMPLE` in the logger read it next to the BME280.
 
 ## `pico_benchmark` (Raspberry Pi Pico, RP2040)
 
