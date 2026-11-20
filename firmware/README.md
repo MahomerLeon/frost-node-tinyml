@@ -282,5 +282,11 @@ python ml/validate_on_device.py COM12 --model-only
 
 Expected: `identical int8 output (node == PC): 100 of 100`.
 
-Test status: the sketch compiles (see below); it has **not been run on a real
-Pico yet**.
+Test status, on a real Pico on 2026-11-20 with the placeholder model and no
+sensors: it loads by copying the `.uf2` file to the `RPI-RP2` drive (BOOTSEL
+mode), shows up as a USB serial port, `STATUS`, `BENCHMARK` and `LASTBENCH` work,
+and `validate_on_device.py --model-only` gave 100 of 100 identical outputs.
+Not tested yet: `TEST` and `SAMPLE` with the BME280, and power through the INA219.
+
+To load it without `-u`: compile with `--output-dir <folder>` and copy the
+`pico_benchmark.ino.uf2` file from that folder to the `RPI-RP2` drive.
