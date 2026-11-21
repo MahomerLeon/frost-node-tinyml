@@ -30,9 +30,13 @@ const unsigned long SERIAL_BAUD_RATE = 115200;
 // is the only way to recover it automatically.
 #define USE_WIFI_NTP 0
 
+// Same servers and waiting time as firmware/logger (first answer took 16.5 s
+// on the home network on 2026-11-20).
 const char NTP_SERVER[] = "pool.ntp.org";
+const char NTP_SERVER_2[] = "time.google.com";
+const char NTP_SERVER_3[] = "time.cloudflare.com";
 const unsigned long WIFI_TIMEOUT_MS = 15000;
-const unsigned long NTP_TIMEOUT_MS = 10000;
+const unsigned long NTP_TIMEOUT_MS = 30000;
 
 // Local time zone (Colombia: UTC-5, no DST). Both values must agree.
 const long UTC_OFFSET_SECONDS = -5 * 3600;

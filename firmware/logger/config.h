@@ -26,11 +26,16 @@ const unsigned long SERIAL_BAUD_RATE = 115200;
 //       secrets.h is listed in .gitignore and must never be committed.
 // In both cases SETTIME still works, and the internal clock of the ESP32
 // keeps the time between readings. The clock is LOST on reset or power loss.
-#define USE_WIFI_NTP 0
+#define USE_WIFI_NTP 1
 
+// Three NTP servers: if the first does not answer, the others are used.
 const char NTP_SERVER[] = "pool.ntp.org";
+const char NTP_SERVER_2[] = "time.google.com";
+const char NTP_SERVER_3[] = "time.cloudflare.com";
 const unsigned long WIFI_TIMEOUT_MS = 15000;
-const unsigned long NTP_TIMEOUT_MS = 10000;
+// On the home network the first answer took 16.5 s (measured 2026-11-20),
+// so the node waits up to 30 s.
+const unsigned long NTP_TIMEOUT_MS = 30000;
 
 // Local time zone used to write the timestamps (Colombia: UTC-5, no DST).
 // Both values must describe the same offset.

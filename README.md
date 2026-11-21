@@ -75,8 +75,10 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 
 No requirement is complete yet. What blocks them:
 
-- **Capture:** the BME280 and the INA219 answer on the board (checked on
-  2026-11-17), but no field data has been captured yet.
+- **Capture:** the node already works outdoors without a PC (first night in
+  Pirgua, 2026-11-20/21: 170 readings, no gaps), but that night the BME280
+  was inside the electronics box, so it is kept as a test and not used. No
+  valid field data yet; see `docs/capture_protocol.md`.
 - **Frost-risk threshold:** not decided, so no real dataset or model exists.
   Everything in `ml/` and `firmware/inference` was checked with a placeholder
   threshold in a temporary folder; those numbers are not results.

@@ -1,17 +1,40 @@
 # Data capture protocol (own dataset, R4)
 
-Status: **draft**. No data has been captured with the node yet. The values
-below come from the project plan; items marked "to confirm" are still open.
+Status: **draft**. One outdoor night has been recorded (2026-11-20/21), but
+it is not part of the dataset because of a sensor placement error (see
+"Lessons from the first night"). Items marked "to confirm" are still open.
 
 ## Where and how the node is installed
 
 | Parameter | Value |
 |---|---|
-| Place | Vereda Pirgua, Tunja. Exact site to confirm with the owner of the land |
+| Place | Vereda Pirgua, Tunja, at the author's home. Wall socket and home Wi-Fi available (confirmed) |
 | Sensor height | 1.5 m above the ground |
-| Sun protection | Shield around the sensor (white cup or PVC tube with slots), so it measures air temperature and not direct sun |
+| Sensor placement | **BME280 and DS18B20 outside the electronics box**, together inside the sun shield, open at the bottom, 20 to 30 cm from the box (I2C wires extended with jumpers; very long I2C wires stop working) |
+| Electronics | ESP32-S3, breadboard and INA219 in a closed plastic box with silica gel; wires enter from below with a drip loop |
+| Sun protection | Shield around the sensors (white cup or PVC tube with slots), so they measure air temperature and not direct sun |
+| Site | Over grass or soil, away from walls, roofs, trees and concrete, which keep heat at night |
 | Period | November to February, the season with most frost in the public data |
-| Power | Wall charger; power bank as backup. Availability of a socket and Wi-Fi at the site is to confirm |
+| Power | Wall charger; power bank as backup |
+| Clock | NTP over the home Wi-Fi at every boot (`USE_WIFI_NTP 1`) |
+
+## Lessons from the first night (2026-11-20/21)
+
+The node worked without a PC for about 14 hours: 170 readings, all `ok`,
+one every 5 minutes, clock set by NTP, no restarts. But the **BME280 was
+inside the electronics box** and only the probe was outside:
+
+- At night the BME280 read about 4.4 °C more than the probe (standard
+  deviation 0.4 °C) and stayed almost flat, while the probe went down to
+  12.5 °C at 06:14. In the indoor test, with both sensors in the same air,
+  the difference had been +0.09 °C.
+- The BME280 read about 60 % humidity. With its own dew point, the outdoor
+  air at the probe temperature would have had about 80 %.
+- The pressure is valid (it does not depend on the air around the sensor).
+
+Rule: the BME280 must measure outdoor air, never the air of the box. The
+log is kept as a test in `data/raw/node_tests/` and the chart is
+[first_night_pirgua_2026-11-20.png](first_night_pirgua_2026-11-20.png).
 
 ## What is recorded
 

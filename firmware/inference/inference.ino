@@ -61,7 +61,11 @@ DallasTemperature probe(&oneWire);
 
 #if USE_WIFI_NTP
 #include <WiFi.h>
+#if __has_include("secrets.h")
 #include "secrets.h"
+#else
+#error "USE_WIFI_NTP is 1 but secrets.h is missing: copy secrets.example.h to secrets.h and write your Wi-Fi name and password, or set USE_WIFI_NTP to 0 in config.h"
+#endif
 #endif
 
 const uint8_t CHIP_ID_REGISTER = 0xD0;
@@ -127,7 +131,7 @@ void syncClockWithNtp() {
     delay(250);
   }
   if (WiFi.status() == WL_CONNECTED) {
-    configTime(0, 0, NTP_SERVER);  // keep the internal clock in UTC
+    configTime(0, 0, NTP_SERVER, NTP_SERVER_2, NTP_SERVER_3);  // clock in UTC
     start = millis();
     while (!isClockSet() && millis() - start < NTP_TIMEOUT_MS) {
       delay(250);
@@ -441,6 +445,12 @@ void closeStep() {
 }
 
 void takeSample() {
+#if USE_WIFI_NTP
+  // Same as the logger: retry NTP while the clock is not set.
+  if (!isClockSet()) {
+    syncClockWithNtp();
+  }
+#endif
   if (!isClockSet()) {
     Serial.println("# WARNING: clock not set. Send SETTIME <epoch>.");
     return;

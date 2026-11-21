@@ -40,7 +40,11 @@ DallasTemperature probe(&oneWire);
 
 #if USE_WIFI_NTP
 #include <WiFi.h>
+#if __has_include("secrets.h")
 #include "secrets.h"
+#else
+#error "USE_WIFI_NTP is 1 but secrets.h is missing: copy secrets.example.h to secrets.h and write your Wi-Fi name and password, or set USE_WIFI_NTP to 0 in config.h"
+#endif
 #endif
 
 // Chip identification register of Bosch sensors and its known values
@@ -98,7 +102,7 @@ void syncClockWithNtp() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("# WARNING: no Wi-Fi. Use SETTIME <epoch> instead.");
   } else {
-    configTime(0, 0, NTP_SERVER);  // keep the internal clock in UTC
+    configTime(0, 0, NTP_SERVER, NTP_SERVER_2, NTP_SERVER_3);  // clock in UTC
     start = millis();
     while (!isClockSet() && millis() - start < NTP_TIMEOUT_MS) {
       delay(250);
@@ -275,6 +279,13 @@ bool appendRow(const String &row) {
 // ------------------------------------------------------------- sampling ----
 
 void takeSample() {
+#if USE_WIFI_NTP
+  // The Wi-Fi may come back later than the node (for example after a power
+  // cut), so while the clock is not set, try NTP again before each reading.
+  if (!isClockSet()) {
+    syncClockWithNtp();
+  }
+#endif
   float temperatureC = NAN;
   float humidityPct = NAN;
   float pressureHpa = NAN;
