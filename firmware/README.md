@@ -121,10 +121,18 @@ Behaviour to know:
 - An invalid reading (NaN or outside the BME280 datasheet ranges) is saved
   with status `sensor_error`; the program continues and retries the sensor.
 - While the clock is not set, readings are printed but **not saved**.
-- The clock is lost on reset or power loss. With `USE_WIFI_NTP 1` (and a
-  `secrets.h` copied from `secrets.example.h`) it is set again from the
-  network at boot; otherwise send `SETTIME` again, which `ml/serial_dump.py`
-  does automatically.
+- The clock is lost on reset or power loss. `USE_WIFI_NTP` is `1` in
+  `logger/config.h`, so the node sets its clock from the network by itself:
+  at boot and, while the clock is still not set, again before every
+  reading (the Wi-Fi may come back later than the node after a power cut).
+  This is what lets the node work without a PC. Without Wi-Fi, send
+  `SETTIME`, which `ml/serial_dump.py` does automatically.
+- The Wi-Fi name and password go in `logger/secrets.h` (copy
+  `secrets.example.h`). That file is in `.gitignore` and is never uploaded.
+  If it is missing, the compiler stops with a message that explains it; set
+  `USE_WIFI_NTP` to `0` to compile without Wi-Fi. The ESP32-S3 only connects
+  to 2.4 GHz networks. With Wi-Fi the logger uses about 75 % of the program
+  partition (983 681 bytes).
 - The log partition holds about 1.4 MB. `STATUS` shows the free space.
 
 Download the log to the PC (close the monitor first):
@@ -178,8 +186,11 @@ window is complete.
 
 Clock in the field: with `USE_WIFI_NTP 1` in `inference/config.h` (and a
 `secrets.h` copied from `secrets.example.h`) the clock is set from the
-network at every boot. Without Wi-Fi the clock is lost on a power cut and
-nothing is predicted until `SETTIME` is sent again.
+network at boot and retried before every reading while it is not set. It is
+`0` by default in this sketch: Wi-Fi plus TensorFlow Lite Micro has not been
+compiled together yet, and the program partition (1.25 MB) may be tight.
+Without Wi-Fi the clock is lost on a power cut and nothing is predicted until
+`SETTIME` is sent again.
 
 Validate the node against the PC:
 
