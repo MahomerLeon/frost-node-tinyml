@@ -126,6 +126,30 @@ def test_every_day_goes_to_exactly_one_split():
     assert counts.to_dict() == {"train": 70, "val": 15, "test": 15}
 
 
+def test_split_is_stratified_by_the_class_of_each_day():
+    days = list(pd.date_range("2026-01-01", periods=100, freq="D").date)
+    # 20 cold days (class 2) and 80 normal days (class 0)
+    day_class = {day: (2 if i < 20 else 0) for i, day in enumerate(days)}
+    split = pd_script.assign_splits(days, CONFIG, day_class)
+    cold = pd.Series([split[day] for day in days[:20]]).value_counts().to_dict()
+    normal = pd.Series([split[day] for day in days[20:]]).value_counts().to_dict()
+    assert cold == {"train": 14, "val": 3, "test": 3}
+    assert normal == {"train": 56, "val": 12, "test": 12}
+
+
+def test_node_temperature_offset_is_subtracted(tmp_path):
+    log = tmp_path / "node_log.csv"
+    log.write_text(
+        "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status\n"
+        "2026-11-21T02:00:00-05:00,10.50,80.00,740.00,10.00,ok\n"
+        "2026-11-21T02:05:00-05:00,nan,nan,nan,10.00,sensor_error\n", encoding="utf-8")
+    config = {"paths": {"node_dir": str(tmp_path)}}
+    assert pd_script.load_node(config)["temperature_c"].tolist() == [10.5]   # no offset
+    config["calibration"] = {"node_temperature_offset_c": 0.5}
+    assert pd_script.load_node(config)["temperature_c"].tolist() == [10.0]
+    assert "10.50" in log.read_text(encoding="utf-8")   # the raw file is unchanged
+
+
 def test_split_is_reproducible_with_the_same_seed():
     days = list(pd.date_range("2026-01-01", periods=50, freq="D").date)
     assert pd_script.assign_splits(days, CONFIG) == pd_script.assign_splits(days, CONFIG)

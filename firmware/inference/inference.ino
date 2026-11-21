@@ -557,11 +557,14 @@ void runBenchmark() {
   benchmarkReport = "";
   // The time of a dense int8 model does not depend on the input values, so
   // the benchmark uses whatever is in the input tensor.
-  double sum = 0, sumSquares = 0;
+  double sum = 0, sumSquares = 0, cycleSum = 0;
   for (int i = 0; i < BENCHMARK_RUNS; i++) {
+    // CPU cycles from the cycle counter of the Xtensa core (CCOUNT register)
+    uint32_t startCycles = ESP.getCycleCount();
     unsigned long start = micros();
     interpreter->Invoke();
     double ms = (micros() - start) / 1000.0;
+    cycleSum += (uint32_t)(ESP.getCycleCount() - startCycles);
     sum += ms;
     sumSquares += ms * ms;
   }
@@ -575,6 +578,8 @@ void runBenchmark() {
   reportValue("runs", BENCHMARK_RUNS, 0);
   reportValue("latency_mean_ms", mean, 4);
   reportValue("latency_std_ms", deviation, 4);
+  reportValue("cpu_cycles_per_inference_mean", cycleSum / BENCHMARK_RUNS, 0);
+  reportValue("throughput_inferences_per_s", 1000.0 / mean, 1);
   // CPU load of inference: one inference per grid step
   reportValue("cpu_load_percent_one_inference_per_step",
               100.0 * mean / (GRID_SECONDS * 1000.0), 6);

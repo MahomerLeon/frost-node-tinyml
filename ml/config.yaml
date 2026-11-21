@@ -39,19 +39,41 @@ max_interpolation_gap_minutes: 60
 #   num_classes: 2 -> one threshold  [T]:        class 1 (risk) if minimum <= T
 #   num_classes: 3 -> two thresholds [Tlow, Thigh]:
 #                       class 2 if minimum <= Tlow, class 1 if minimum <= Thigh
-# The thresholds are an agronomic decision that has NOT been made yet, so
-# they are empty on purpose. prepare_dataset.py stops until you fill them in.
-# Example of the syntax only (not a recommendation):  thresholds_c: [1.5]
+#
+# Decision of 2026-11-21 (the author asked to choose the most convenient
+# option), written in docs/capture_protocol.md:
+#   class 0 "no risk"  minimum above 6 C
+#   class 1 "caution"  minimum above 2 C and at most 6 C
+#   class 2 "risk"     minimum at or below 2 C
+# 2 C: the sensors are at 1.5 m; on clear, calm nights the crop surface can be
+#      several degrees colder than the air at that height (FAO frost
+#      protection, ref. [1] of the proposal), so 2 C in the air is treated as
+#      possible frost on the crop.
+# 6 C: an operational caution band, NOT an agronomic value. It gives the
+#      model examples of cold nights, because nights at or below 2 C are rare
+#      in the data (IDEAM UPTC Tunja: 9 days in 2019-2026).
+# Both values can be changed here; build a new dataset version if they change.
 labeling:
-  num_classes: 2
-  thresholds_c: []
+  num_classes: 3
+  thresholds_c: [2.0, 6.0]
 
 # ---- Split by whole days ----
+# Stratified: days are grouped by the highest class they contain, and each
+# group is split 70/15/15 on its own, so the rare cold days appear in train,
+# val and test (guidelines, section 5.2).
 split:
   train: 0.70
   val: 0.15
   test: 0.15
   seed: 42
+
+# ---- Calibration of the node temperature ----
+# Offset of the BME280 against the DS18B20 probe (BME280 minus probe, in C),
+# measured with ml/calibration_report.py when both sensors are together.
+# null = no correction. When set, prepare_dataset.py subtracts it from the
+# node temperature; the raw files are never changed.
+calibration:
+  node_temperature_offset_c: null
 
 # ---- Training (ml/train.py) ----
 training:
@@ -69,7 +91,8 @@ conversion:
   representative_samples: 500   # train rows used to calibrate the int8 ranges
   device_test_vectors: 100      # test rows exported to validate on the ESP32-S3
 
-# ---- Warning about scarce positives ----
-# Rule of thumb, not a result: warn when the training split has fewer
-# distinct cold events than this.
-min_positive_events_train: 30
+# ---- Minimum examples per class ----
+# Rule of thumb, not a result: prepare_dataset.py warns when the training
+# split has fewer station-days than this for any class (guidelines, 5.2:
+# define the minimum number of samples per class in advance).
+min_days_per_class_train: 10

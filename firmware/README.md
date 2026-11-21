@@ -175,7 +175,7 @@ as the logger) and every prediction to `/predictions.csv` in the flash.
 | `DUMP` | prints `/log.csv`; `ml/serial_dump.py` works with this firmware too |
 | `DUMPPRED` | prints `/predictions.csv`; used by `scraper/node_listener.py` |
 | `CLEAR` | deletes both files |
-| `BENCHMARK` | times 200 inferences and prints latency mean/std, tensor arena, Flash, heap, stack and CPU load with percentages (R7); with an INA219 connected it adds current, power and energy per inference. The report is also saved in the flash |
+| `BENCHMARK` | times 200 inferences and prints latency mean/std, CPU cycles per inference, throughput, tensor arena, Flash, heap, stack and CPU load with percentages (R7); with an INA219 connected it adds current, power and energy per inference. The report is also saved in the flash |
 | `LASTBENCH` | prints the last saved benchmark report (needed for the power measurement, which runs without a PC: see `docs/hardware_setup.md`) |
 | `VECTOR a,b,...` | runs the model on a raw int8 input |
 | `WINDOW <hour> t,h,p;...` | runs the whole preprocessing and the model on raw readings; nothing is stored |
@@ -187,8 +187,13 @@ window is complete.
 Clock in the field: with `USE_WIFI_NTP 1` in `inference/config.h` (and a
 `secrets.h` copied from `secrets.example.h`) the clock is set from the
 network at boot and retried before every reading while it is not set. It is
-`0` by default in this sketch: Wi-Fi plus TensorFlow Lite Micro has not been
-compiled together yet, and the program partition (1.25 MB) may be tight.
+`0` by default in this sketch. Compiled with `1` on 2026-11-21 (placeholder
+model): 1 049 465 bytes, **80 % of the 1.25 MB program partition**, right at
+the course limit. If the real model does not fit, choose a partition scheme
+with a larger program area in the Tools menu (the board has 16 MB of flash);
+that rewrites the partition table and **erases the log in the flash**, so
+download it first. To enable it, also copy `secrets.h` from `logger/` into
+`inference/` (it is ignored by git).
 Without Wi-Fi the clock is lost on a power cut and nothing is predicted until
 `SETTIME` is sent again.
 

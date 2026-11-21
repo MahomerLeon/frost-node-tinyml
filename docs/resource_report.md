@@ -18,6 +18,8 @@ Everything comes from the `BENCHMARK` command of `firmware/inference`
 | Heap, peak use | bytes, % | heap size minus `ESP.getMinFreeHeap()` | heap size |
 | Stack, peak use | bytes, % | stack size minus the high-water mark of the loop task | stack of the loop task |
 | Latency per inference | ms | `micros()` around each `Invoke()`, mean and standard deviation over 200 runs | — |
+| CPU cycles per inference | cycles | cycle counter of the core around each `Invoke()` (`ESP.getCycleCount()` on the ESP32-S3, `rp2040.getCycleCount64()` on the Pico), mean over 200 runs | — |
+| Throughput | inferences/s | 1000 divided by the mean latency in ms | — |
 | CPU load | % | mean latency divided by the period between inferences (30 min) | — |
 | Power | mA, mW | INA219 in series with the 5 V supply, averaged over 50 readings, idle and while running inferences without pause | — |
 | Energy per inference | mJ | power while inferring × mean latency | — |
@@ -25,7 +27,9 @@ Everything comes from the `BENCHMARK` command of `firmware/inference`
 Limits of the method:
 
 - The CPU load is an estimate from the latency, not a measurement with the
-  profiling tools of the manufacturer SDK.
+  profiling tools of the manufacturer SDK. The CPU cycles come from the
+  hardware cycle counter (added on 2026-11-21, not measured on the boards
+  yet).
 - The INA219 is before the 5 V pin, so power includes the losses of the
   voltage regulator of the board.
 - Latency and power are measured with the CPU at 240 MHz and Wi-Fi off.

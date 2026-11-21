@@ -79,22 +79,25 @@ No requirement is complete yet. What blocks them:
   Pirgua, 2026-11-20/21: 170 readings, no gaps), but that night the BME280
   was inside the electronics box, so it is kept as a test and not used. No
   valid field data yet; see `docs/capture_protocol.md`.
-- **Frost-risk threshold:** not decided, so no real dataset or model exists.
-  Everything in `ml/` and `firmware/inference` was checked with a placeholder
-  threshold in a temporary folder; those numbers are not results.
+- **Model:** no real dataset or model exists yet. Everything in `ml/` and
+  `firmware/inference` was checked with a placeholder model in a temporary
+  folder; those numbers are not results.
 - **Not run on the board yet:** a full 3 h window of real readings with a
   prediction, and the power measurement through the INA219 on either board.
-- **Calibration:** the DS18B20 probe works on the board (checked on
-  2026-11-20), but the calibration against the BME280 has not been done.
+- **Calibration:** done in place during the capture (both sensors together
+  in the sun shield); not done yet.
 
-## Open decisions
+## Decisions
 
-- **Frost-risk threshold:** not decided. It is the parameter
-  `labeling.thresholds_c` in `ml/config.yaml`, intentionally empty;
-  `ml/prepare_dataset.py` stops until it is filled in. No script may
-  hard-code a threshold.
-- Capture protocol (sampling interval, duration, how the node keeps time in
-  the field).
+- **Classes (2026-11-21):** three classes from the minimum of the next 6 h:
+  risk at or below 2 °C, caution at or below 6 °C, no risk above. The 6 °C
+  limit is an operational band, not an agronomic value. Both are parameters
+  in `ml/config.yaml`; see `docs/capture_protocol.md`.
+- **Device:** the ESP32-S3 was adopted on the recommendation of the course
+  instructor, Prof. Fernando Jiménez; `docs/resource_report.md` measures how
+  much of it the task uses.
+- **Calibration:** no separate test before the capture; the offset between
+  the BME280 and the probe is measured in place.
 
 ## How to reproduce
 
@@ -120,7 +123,7 @@ Tools used so far: Windows 11, Python 3.13.17 with TensorFlow 2.21.0,
 2. Capture data with the node and download it: see
    [firmware/README.md](firmware/README.md).
 
-3. Decide the frost-risk threshold and write it in `ml/config.yaml`.
+3. Check the classes and the calibration offset in `ml/config.yaml`.
 
 4. Build the dataset, train, convert and validate: see
    [ml/README.md](ml/README.md).
