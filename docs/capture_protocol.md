@@ -2,7 +2,8 @@
 
 Status: **draft**. One outdoor night has been recorded (2026-11-20/21), but
 it is not part of the dataset because of a sensor placement error (see
-"Lessons from the first night"). Items marked "to confirm" are still open.
+"Lessons from the first night"). The capture with both sensors outside
+starts on 2026-11-21.
 
 ## Where and how the node is installed
 
@@ -60,20 +61,27 @@ power cut, and readings are not stored until the clock is set again.
 
 Which of the two will be used is to confirm.
 
-## Calibration (to do before the capture)
+## Calibration (in place, during the capture)
 
-1. Ice-water test: sensor and reference thermometer next to each other in a
-   glass of water with ice (close to 0 °C).
-2. Leave the sensor and the reference together for a few hours at ambient
-   temperature.
-3. Write down the offset between the two in this document. Do not correct
-   the raw files: any correction is applied when the dataset is built.
+Decision of 2026-11-21: there is no separate calibration before the
+capture. The BME280 and the DS18B20 probe are installed together in the sun
+shield, so every reading of the capture also compares the two sensors.
 
-The comparison is computed by `python ml/calibration_report.py` (offset =
-BME280 minus probe: mean, standard deviation, minimum and maximum). Use
-`--start` and `--end` to keep only the hours of one test.
+1. After a night of capture, compute the offset with
+   `python ml/calibration_report.py` (offset = BME280 minus probe: mean,
+   standard deviation, minimum and maximum). `--start` and `--end` keep
+   only some hours, for example the night.
+2. Write the result here and, if a correction is decided, put the mean offset
+   in `calibration.node_temperature_offset_c` of `ml/config.yaml`.
+   `prepare_dataset.py` then subtracts it from the node temperature. The raw
+   files are never changed. Only the temperature is corrected; the humidity
+   is used as measured.
 
-Result: not done yet.
+Limitation: without the ice-water test, the probe itself is not checked
+against a known temperature; the offset says how much the two sensors
+differ, not which one is right.
+
+Result: not done yet (the first outdoor night cannot be used, see above).
 
 ## From the node to the dataset
 
@@ -87,12 +95,28 @@ Result: not done yet.
 
 ## Labeling
 
-The class of each window depends on the minimum temperature of the following
-6 hours, compared with one threshold (2 classes) or two thresholds (3
-classes). **The thresholds and the number of classes are not decided**; they
-need agronomic support (for example Fedepapa, ICA or literature) and are
-written in `ml/config.yaml`. The preparation script stops while they are
-empty.
+The class of each window depends on the minimum air temperature of the
+following 6 hours. Decided on 2026-11-21 (the author asked to choose the most
+convenient option); written in `ml/config.yaml`:
+
+| Class | Name | Minimum of the next 6 h |
+|---|---|---|
+| 2 | risk | at or below 2 °C |
+| 1 | caution | above 2 °C and at or below 6 °C |
+| 0 | no risk | above 6 °C |
+
+- **2 °C:** the sensors are at 1.5 m. On clear, calm nights the crop surface
+  can be several degrees colder than the air at that height (FAO, *Frost
+  Protection: Fundamentals, Practice and Economics*, 2005), so 2 °C in the
+  air is treated as possible frost on the crop.
+- **6 °C:** an operational caution band, **not an agronomic value**. Nights at
+  or below 2 °C are rare (IDEAM UPTC Tunja: 9 days in 2019-2026), so the band
+  gives the model examples of cold nights.
+- **Minimum per class:** at least 10 station-days of each class in the
+  training split (`min_days_per_class_train`); `prepare_dataset.py` warns if
+  a class has fewer.
+- If an agronomic source (Fedepapa, ICA) gives other values, change them in
+  the config and build a new dataset version.
 
 ## Versions and split
 
@@ -102,7 +126,11 @@ empty.
 - Split into train, validation and test by **whole calendar days**
   (70 / 15 / 15 %), with a fixed seed. Every reading of a day is in the same
   split, and a day is in the same split for every source, so there is no
-  leakage between splits. Checked by `tests/test_prepare_dataset.py`.
+  leakage between splits.
+- **Stratified:** days are grouped by the highest class of any of their
+  windows, and each group is split 70 / 15 / 15 on its own, so the rare cold
+  days reach validation and test too. Both rules are checked by
+  `tests/test_prepare_dataset.py`.
 - Known limitation: a window close to midnight uses a few hours of the
   neighbouring day.
 

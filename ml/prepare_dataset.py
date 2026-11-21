@@ -105,6 +105,13 @@ def load_node(config):
     table["timestamp"] = pd.to_datetime(
         table["timestamp_iso"].str.slice(0, 19), format="%Y-%m-%dT%H:%M:%S")
     table = table.drop_duplicates("timestamp")  # two dumps may overlap
+
+    # Calibration against the reference probe (BME280 minus probe). Only the
+    # copy in memory is corrected; the raw files are never changed.
+    offset = (config.get("calibration") or {}).get("node_temperature_offset_c")
+    if offset is not None:
+        table["temperature_c"] = table["temperature_c"] - float(offset)
+
     table["source"] = "node"
     table["station"] = "node"
     table["source_interpolated"] = False
@@ -222,17 +229,33 @@ def count_cold_events(grid, threshold):
     return int(starts)
 
 
-def assign_splits(dates, config):
-    """Assign every calendar day to train, val or test (fixed seed)."""
+def assign_splits(dates, config, day_class=None):
+    """Assign every calendar day to train, val or test (fixed seed).
+
+    Stratified split: day_class gives, for each day, the highest class of
+    any of its windows. Days are grouped by that class and each group is
+    split with the same proportions, so the rare cold days also reach val and
+    test. Without day_class, all days form a single group.
+    """
     split = config["split"]
-    days = np.array(sorted(set(dates)))
-    order = np.random.default_rng(split["seed"]).permutation(len(days))
-    n_train = int(round(len(days) * split["train"]))
-    n_val = int(round(len(days) * split["val"]))
-    names = np.array(["test"] * len(days), dtype=object)
-    names[order[:n_train]] = "train"
-    names[order[n_train:n_train + n_val]] = "val"
-    return dict(zip(days, names))
+    days = sorted(set(dates))
+    groups = {}
+    for day in days:
+        group = day_class.get(day, 0) if day_class is not None else 0
+        groups.setdefault(group, []).append(day)
+
+    rng = np.random.default_rng(split["seed"])
+    result = {}
+    for group in sorted(groups):
+        group_days = np.array(groups[group])
+        order = rng.permutation(len(group_days))
+        n_train = int(round(len(group_days) * split["train"]))
+        n_val = int(round(len(group_days) * split["val"]))
+        names = np.array(["test"] * len(group_days), dtype=object)
+        names[order[:n_train]] = "train"
+        names[order[n_train:n_train + n_val]] = "val"
+        result.update(zip(group_days, names))
+    return result
 
 
 # --------------------------------------------------------------------- main
@@ -288,14 +311,16 @@ def main():
             continue
         has_pressure = table["pressure_hpa"].notna().any()
 
-        steps_total = steps_with_data = steps_interpolated = cold_events = 0
+        steps_total = steps_with_data = steps_interpolated = 0
+        cold_events = {t: 0 for t in thresholds}  # one count per threshold
         for station, station_table in table.groupby("station"):
             grid = to_grid(station_table, config)
             present = grid["temperature_c"].notna() & grid["humidity_pct"].notna()
             steps_total += len(grid)
             steps_with_data += int(present.sum())
             steps_interpolated += int((grid["interpolated"] & present).sum())
-            cold_events += count_cold_events(grid, max(thresholds))
+            for t in thresholds:
+                cold_events[t] += count_cold_events(grid, t)
 
             windows = build_windows(grid, has_pressure, config)
             windows.insert(0, "station", station)
@@ -309,9 +334,10 @@ def main():
             f"have temperature and humidity ({100 * steps_with_data / steps_total:.1f}%)",
             f"[{source}] interpolated: {steps_interpolated} of those steps "
             f"({100 * steps_interpolated / max(steps_with_data, 1):.1f}%)",
-            f"[{source}] real cold events (separate episodes with temperature <= "
-            f"{max(thresholds)} C): {cold_events}",
         ]
+        for t, count in cold_events.items():
+            report.append(f"[{source}] real cold events (separate episodes with "
+                          f"temperature <= {t} C): {count}")
 
     if not all_windows:
         sys.exit("ERROR: no source produced data.")
@@ -327,7 +353,9 @@ def main():
     dataset["label"] = sum((future_min <= t).astype(int) for t in thresholds)
 
     dataset["date"] = dataset["timestamp"].dt.date
-    split_of_day = assign_splits(dataset["date"], config)
+    # Stratify by the highest class of each day, over all sources
+    day_class = dataset.groupby("date")["label"].max().to_dict()
+    split_of_day = assign_splits(dataset["date"], config, day_class)
     dataset["split"] = dataset["date"].map(split_of_day)
 
     first = ["source", "station", "timestamp", "date", "split", "label",
@@ -344,22 +372,24 @@ def main():
     report += ["", "days per split:"]
     report.append(dataset.groupby("split")["date"].nunique().to_string())
 
-    # Positive days in train: distinct days with at least one risk window
-    train_positive = dataset[(dataset["split"] == "train") & (dataset["label"] > 0)]
-    positive_days_train = train_positive.groupby("station")["date"].nunique().sum()
-    report += ["", f"risk windows in train: {len(train_positive)}",
-               f"station-days with risk in train: {positive_days_train}"]
-
-    minimum = config["min_positive_events_train"]
-    if positive_days_train < minimum:
+    # Station-days per class in train: a station-day counts for a class when
+    # at least one of its windows has that class
+    train = dataset[dataset["split"] == "train"]
+    minimum = config["min_days_per_class_train"]
+    report += ["", f"station-days per class in train (minimum configured: {minimum}):"]
+    scarce = []
+    for label in range(config["labeling"]["num_classes"]):
+        days = train[train["label"] == label].groupby("station")["date"].nunique().sum()
+        report.append(f"  class {label}: {days}")
+        if days < minimum:
+            scarce.append(f"class {label} ({days})")
+    if scarce:
         report += [
             "",
             "*" * 70,
-            f"WARNING: only {positive_days_train} station-days with risk in the "
-            f"training split (minimum configured: {minimum}).",
-            "This is too few positive examples to train or evaluate a model "
-            "reliably. Capture more cold nights, add sources, or review the "
-            "threshold.",
+            "WARNING: too few training days for " + ", ".join(scarce) + ".",
+            "This is too few examples to train or evaluate a model reliably. "
+            "Capture more cold nights, add sources, or review the thresholds.",
             "*" * 70,
         ]
     node_windows = int((dataset["source"] == "node").sum())

@@ -241,11 +241,14 @@ void runBenchmark() {
     return;
   }
   benchmarkReport = "";
-  double sum = 0, sumSquares = 0;
+  double sum = 0, sumSquares = 0, cycleSum = 0;
   for (int i = 0; i < BENCHMARK_RUNS; i++) {
+    // CPU cycles counted by the RP2040 core (64-bit counter)
+    uint64_t startCycles = rp2040.getCycleCount64();
     unsigned long start = micros();
     interpreter->Invoke();
     double ms = (micros() - start) / 1000.0;
+    cycleSum += (double)(rp2040.getCycleCount64() - startCycles);
     sum += ms;
     sumSquares += ms * ms;
   }
@@ -258,6 +261,8 @@ void runBenchmark() {
   reportValue("runs", BENCHMARK_RUNS, 0);
   reportValue("latency_mean_ms", mean, 4);
   reportValue("latency_std_ms", deviation, 4);
+  reportValue("cpu_cycles_per_inference_mean", cycleSum / BENCHMARK_RUNS, 0);
+  reportValue("throughput_inferences_per_s", 1000.0 / mean, 1);
   // CPU load if the model runs once per grid step, as on the ESP32-S3
   reportValue("cpu_load_percent_one_inference_per_step",
               100.0 * mean / (MODEL_GRID_MINUTES * 60.0 * 1000.0), 6);
