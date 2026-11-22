@@ -150,6 +150,23 @@ def test_node_temperature_offset_is_subtracted(tmp_path):
     assert "10.50" in log.read_text(encoding="utf-8")   # the raw file is unchanged
 
 
+def test_node_rows_outside_the_valid_periods_are_ignored(tmp_path):
+    log = tmp_path / "node_log.csv"
+    log.write_text(
+        "timestamp_iso,temperature_c,humidity_pct,pressure_hpa,reference_temperature_c,status\n"
+        "2026-11-20T23:00:00-05:00,19.00,60.00,740.00,14.50,ok\n"   # first night, BME280 in the box
+        "2026-11-21T19:50:00-05:00,15.00,72.00,740.00,16.50,ok\n"
+        "2026-11-21T20:00:00-05:00,14.00,74.00,740.00,14.80,ok\n"
+        "2026-11-22T08:30:00-05:00,20.50,61.00,741.00,20.10,ok\n", encoding="utf-8")  # boot at the PC
+    config = {"paths": {"node_dir": str(tmp_path)}}
+    assert len(pd_script.load_node(config)) == 4                      # no periods: all rows
+    config["node"] = {"valid_periods": [["2026-11-21 19:45:00", "2026-11-22 07:40:00"]]}
+    assert pd_script.load_node(config)["temperature_c"].tolist() == [15.0, 14.0]
+    config["node"] = {"valid_periods": [["2027-01-01 00:00:00", "2027-01-02 00:00:00"]]}
+    assert pd_script.load_node(config) is None                        # nothing valid yet
+    assert "19.00" in log.read_text(encoding="utf-8")                 # the raw file is unchanged
+
+
 def test_split_is_reproducible_with_the_same_seed():
     days = list(pd.date_range("2026-01-01", periods=50, freq="D").date)
     assert pd_script.assign_splits(days, CONFIG) == pd_script.assign_splits(days, CONFIG)

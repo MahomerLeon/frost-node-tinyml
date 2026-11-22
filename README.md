@@ -75,10 +75,11 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 
 No requirement is complete yet. What blocks them:
 
-- **Capture:** the node already works outdoors without a PC (first night in
-  Pirgua, 2026-11-20/21: 170 readings, no gaps), but that night the BME280
-  was inside the electronics box, so it is kept as a test and not used. No
-  valid field data yet; see `docs/capture_protocol.md`.
+- **Capture:** the node works outdoors without a PC. First night (2026-11-20/21)
+  discarded: the BME280 was inside the box. Second night (2026-11-21/22) is
+  valid: 143 readings, both sensors outside, BME280 vs. probe -0.12 °C. Its
+  minimum was 13.2 °C, so the dataset has **only class 0**; it needs cold
+  nights. The scraper did not run that night.
 - **Model:** no real dataset or model exists yet. Everything in `ml/` and
   `firmware/inference` was checked with a placeholder model in a temporary
   folder; those numbers are not results.

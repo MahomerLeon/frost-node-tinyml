@@ -2,8 +2,9 @@
 
 Status: **draft**. One outdoor night has been recorded (2026-11-20/21), but
 it is not part of the dataset because of a sensor placement error (see
-"Lessons from the first night"). The capture with both sensors outside
-starts on 2026-11-21.
+"Lessons from the first night"). The second night (2026-11-21/22), with both
+sensors outside, is valid: 143 readings, minimum 13.2 °C, so only class 0.
+There are no cold nights in the dataset yet.
 
 ## Where and how the node is installed
 
@@ -81,7 +82,20 @@ Limitation: without the ice-water test, the probe itself is not checked
 against a known temperature; the offset says how much the two sensors
 differ, not which one is right.
 
-Result: not done yet (the first outdoor night cannot be used, see above).
+Result of the second night (2026-11-21 19:49 to 2026-11-22 07:35, both
+sensors together outside the box, 143 readings): BME280 minus probe is
+**-0.12 °C** (standard deviation 0.25 °C) from 21:00 to 05:30. It is larger
+when the sensors adapt to the outdoor air (first 40 minutes: -0.53 °C) and
+at sunrise (06:00 to 07:36: +0.46 °C, peaks of +1.5 °C), probably because the
+sun reaches one sensor before the other. Use only the night hours to decide a
+correction. No correction is applied yet
+(`calibration.node_temperature_offset_c` is `null`); one more night is
+needed before deciding.
+
+![Night 2](night2_pirgua_2026-11-21.png)
+
+Data periods: only the periods listed in `node.valid_periods` of
+`ml/config.yaml` enter the dataset (see `data/raw/node/README.md`).
 
 ## From the node to the dataset
 

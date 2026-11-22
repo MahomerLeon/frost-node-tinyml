@@ -106,6 +106,18 @@ def load_node(config):
         table["timestamp_iso"].str.slice(0, 19), format="%Y-%m-%dT%H:%M:%S")
     table = table.drop_duplicates("timestamp")  # two dumps may overlap
 
+    # Keep only the valid outdoor periods (config node.valid_periods): other
+    # rows are tests or boot readings, not field data.
+    periods = (config.get("node") or {}).get("valid_periods")
+    if periods is not None:
+        keep = pd.Series(False, index=table.index)
+        for start, end in periods:
+            keep |= (table["timestamp"] >= pd.Timestamp(start)) & (
+                table["timestamp"] <= pd.Timestamp(end))
+        table = table[keep]
+        if table.empty:
+            return None
+
     # Calibration against the reference probe (BME280 minus probe). Only the
     # copy in memory is corrected; the raw files are never changed.
     offset = (config.get("calibration") or {}).get("node_temperature_offset_c")

@@ -67,6 +67,16 @@ split:
   test: 0.15
   seed: 42
 
+# ---- Valid periods of the node data ----
+# Only node readings inside one of these local-time periods [start, end] are
+# used. The raw files are never edited: they also contain the first night
+# (BME280 inside the box), indoor tests and the boot readings taken when the
+# board is plugged into the PC, which must not enter the dataset. Add one
+# period per outdoor capture. null = use every row.
+node:
+  valid_periods:
+    - ["2026-11-21 19:45:00", "2026-11-22 07:40:00"]   # night 2: both sensors outside the box
+
 # ---- Calibration of the node temperature ----
 # Offset of the BME280 against the DS18B20 probe (BME280 minus probe, in C),
 # measured with ml/calibration_report.py when both sensors are together.
