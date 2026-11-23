@@ -100,7 +100,23 @@ def test_forecast_log_is_loaded_into_the_hash_table(tmp_path):
 def test_node_reading_line():
     kind, row = node_listener.parse_line("STEP,2026-11-12T12:30:00-05:00,14.25,81.10,739.40,ok")
     assert kind == "reading"
-    assert row == ["2026-11-12T12:30:00-05:00", "14.25", "81.10", "739.40"]
+    assert row == ["2026-11-12T12:30:00-05:00", "14.25", "81.10", "739.40", ""]  # no probe here
+
+
+def test_logger_row_is_a_reading_with_the_probe():
+    kind, row = node_listener.parse_line("2026-11-22T21:30:14-05:00,14.68,75.57,740.56,15.64,ok")
+    assert kind == "reading"
+    assert row == ["2026-11-22T21:30:14-05:00", "14.68", "75.57", "740.56", "15.64"]
+    # probe not connected: the logger writes nan, stored as an empty value
+    _, row = node_listener.parse_line("2026-11-22T21:30:14-05:00,14.68,75.57,740.56,nan,ok")
+    assert row[4] == ""
+
+
+def test_logger_rows_that_must_not_be_saved():
+    assert node_listener.parse_line("2026-11-22T21:30:14-05:00,nan,nan,nan,15.64,sensor_error") is None
+    assert node_listener.parse_line("TIME_NOT_SET,14.68,75.57,740.56,15.64,ok") is None  # no clock
+    assert node_listener.parse_line("timestamp_iso,temperature_c,humidity_pct,pressure_hpa,"
+                                    "reference_temperature_c,status") is None
 
 
 def test_node_prediction_line_with_two_and_three_classes():

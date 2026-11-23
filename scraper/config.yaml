@@ -6,6 +6,10 @@ municipality: Tunja
 # Optional text shown at the top of the dashboard. Leave empty for normal use.
 banner: ""
 
+# Reload the dashboard by itself every this many seconds (0 = never). Use 10
+# for a live demo; with 0 the page is reloaded with the browser's F5.
+refresh_seconds: 0
+
 # HTML page that is scraped. "m" = metric units, "lang=en" = English labels
 # (the parser looks for the English words Morning, Noon, Evening, Night).
 url: "https://wttr.in/Tunja?m&lang=en"

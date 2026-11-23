@@ -1,15 +1,22 @@
-"""Save the predictions of the node (firmware/inference) to CSV files.
+"""Save what the node prints on the serial port to CSV files, for the dashboard.
 
-The node prints two kinds of lines on the serial port:
+It understands the two firmwares of the node:
+
+- firmware/logger prints one row per reading:
+    <time>,<temperature>,<humidity>,<pressure>,<reference temperature>,<ok|sensor_error>
+- firmware/inference prints
     STEP,<time>,<temperature>,<humidity>,<pressure>,<ok|no_data>
     PREDICTION,<time>,class=<c>,p0=<p>,p1=<p>[,p2=<p>]
-This script sets the clock of the node, then appends every STEP line to
-data/raw/node_live/readings.csv and every PREDICTION line to
-data/raw/node_live/predictions.csv, which the dashboard reads.
 
-The node also keeps its predictions in its flash memory, so the ones made
-while no PC was connected are not lost: when this script starts, it asks for
-them (command DUMPPRED) and adds the ones that are not in the CSV files yet.
+This script sets the clock of the node, then appends every reading to
+data/raw/node_live/readings.csv and every PREDICTION line to
+data/raw/node_live/predictions.csv, which the dashboard reads. With the logger
+there are readings (and the probe temperature) but no predictions.
+
+The inference firmware also keeps its predictions in its flash memory, so the
+ones made while no PC was connected are not lost: when this script starts, it
+asks for them (command DUMPPRED) and adds the ones that are not in the CSV
+files yet. The logger does not have that command and the script skips it.
 
 Run from the repository root (replace COM9 with the port of your board):
     python scraper/node_listener.py COM9
@@ -18,6 +25,7 @@ Stop with Ctrl+C.
 
 import argparse
 import csv
+import re
 import time
 from pathlib import Path
 
@@ -29,8 +37,12 @@ BAUD_RATE = 115200
 BOOT_WAIT_SECONDS = 4
 DUMP_TIMEOUT_SECONDS = 60
 
-READING_COLUMNS = ["timestamp", "temperature_c", "humidity_pct", "pressure_hpa"]
+READING_COLUMNS = ["timestamp", "temperature_c", "humidity_pct", "pressure_hpa",
+                   "reference_temperature_c"]
 PREDICTION_COLUMNS = ["timestamp", "predicted_class", "probabilities"]
+
+# "2026-11-22T21:30:00-05:00": the first field of a row of the logger
+LOGGER_TIME = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
 
 
 def append_row(file, columns, row):
@@ -49,7 +61,10 @@ def parse_line(line):
     """Return ("reading" | "prediction", row) or None for any other line."""
     parts = line.split(",")
     if parts[0] == "STEP" and len(parts) == 6 and parts[5] == "ok":
-        return "reading", parts[1:5]
+        return "reading", parts[1:5] + [""]  # the inference firmware has no probe
+    if len(parts) == 6 and LOGGER_TIME.match(parts[0]) and parts[5] == "ok":
+        reference = "" if parts[4] == "nan" else parts[4]  # nan = probe not connected
+        return "reading", parts[0:4] + [reference]
     if parts[0] == "PREDICTION" and len(parts) >= 4 and parts[2].startswith("class="):
         predicted_class = parts[2].split("=")[1]
         # "p0=0.980,p1=0.020" -> "0.980;0.020"
@@ -80,6 +95,9 @@ def download_stored_predictions(node, files):
     deadline = time.time() + DUMP_TIMEOUT_SECONDS
     while time.time() < deadline and not finished:
         line = node.readline().decode("utf-8", errors="replace").strip()
+        if "unknown command: DUMPPRED" in line:
+            print("This firmware does not store predictions (it is the logger): skipped.")
+            return
         if line == "# DUMPPRED BEGIN":
             inside = True
         elif line == "# DUMPPRED END":
@@ -97,7 +115,7 @@ def download_stored_predictions(node, files):
     added = 0
     for timestamp, temperature, humidity, pressure, predicted_class, probabilities in rows:
         if timestamp not in known_readings:
-            append_row(*files["reading"], [timestamp, temperature, humidity, pressure])
+            append_row(*files["reading"], [timestamp, temperature, humidity, pressure, ""])
         if timestamp not in known_predictions:
             append_row(*files["prediction"], [timestamp, predicted_class, probabilities])
             added += 1
@@ -119,6 +137,10 @@ def main():
         node.reset_input_buffer()  # discard the boot messages
         node.write(f"SETTIME {int(time.time())}\n".encode())
         download_stored_predictions(node, files)
+        # Ask for one reading right now (the logger has this command), so the
+        # dashboard does not wait up to 5 minutes for the first one. The
+        # inference firmware answers "unknown command", which is harmless.
+        node.write(b"SAMPLE\n")
         print("Listening. Press Ctrl+C to stop.")
         try:
             while True:

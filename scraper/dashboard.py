@@ -13,6 +13,7 @@ scraper/comparison.py; this file only shows the results.
 """
 
 import os
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -64,6 +65,21 @@ def main():
     else:
         st.warning("The risk threshold is not set in ml/config.yaml. The forecast "
                    "is shown, but it cannot be turned into a risk class yet.")
+
+    # ---- 0. last reading of the node (live with the logger) ----
+    st.header("Last reading of the node")
+    if readings.empty:
+        st.info("No readings yet. Run scraper/node_listener.py with the node connected.")
+    else:
+        last = readings.iloc[-1]
+        columns = st.columns(5)
+        columns[0].metric("Time", str(last["time"]))
+        columns[1].metric("BME280 (°C)", f"{last['temperature_c']:.2f}")
+        reference = last.get("reference_temperature_c")
+        columns[2].metric("Probe (°C)", "–" if pd.isna(reference) else f"{reference:.2f}")
+        columns[3].metric("Humidity (%)", f"{last['humidity_pct']:.1f}")
+        columns[4].metric("Pressure (hPa)", f"{last['pressure_hpa']:.1f}")
+        st.caption(f"{len(readings)} readings loaded")
 
     # ---- 1. last prediction of the node ----
     st.header("Last prediction of the node")
@@ -120,7 +136,9 @@ def main():
     series = {}
     if not readings.empty:
         recent = readings[readings["time"] >= since]
-        series["node (measured)"] = recent.set_index("time")["temperature_c"]
+        series["node BME280"] = recent.set_index("time")["temperature_c"]
+        if "reference_temperature_c" in recent and recent["reference_temperature_c"].notna().any():
+            series["node probe (DS18B20)"] = recent.set_index("time")["reference_temperature_c"]
     if not forecast.empty:
         recent = forecast[forecast["time"] >= since]
         series["forecast"] = recent.set_index("time")["temperature (C)"]
@@ -128,6 +146,12 @@ def main():
         st.line_chart(pd.DataFrame(series))
     else:
         st.info("No temperature data in this period yet.")
+
+    # Optional automatic refresh, for a live demo (scraper/config.yaml)
+    refresh_seconds = int(config.get("refresh_seconds") or 0)
+    if refresh_seconds > 0:
+        time.sleep(refresh_seconds)
+        st.rerun()
 
 
 main()
