@@ -17,6 +17,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 import yaml
@@ -39,7 +40,42 @@ def read_thresholds(config):
         (REPO_DIR / config["paths"]["ml_config"]).read_text(encoding="utf-8"))
     return [float(t) for t in (ml_config["labeling"].get("thresholds_c") or [])]
 
-
+def temperature_chart(data, thresholds):
+    """Lines for the node sensors, points for the forecast, risk bands and thresholds."""
+    colors = alt.Scale(domain=["Node BME280", "Node probe (DS18B20)", "Forecast (wttr.in)"],
+                       range=["#1f77b4", "#2ca02c", "#d95f02"])
+    # One fixed vertical range for every layer (the zones and rules must not stretch it)
+    low_end = min([data["temperature"].min()] + list(thresholds)) - 1
+    y_scale = alt.Scale(domain=[low_end, data["temperature"].max() + 1], nice=False)
+    base = alt.Chart(data).encode(
+        x=alt.X("time:T", title=None),
+        y=alt.Y("temperature:Q", title="Temperature (°C)", scale=y_scale),
+        color=alt.Color("source:N", scale=colors, title=None,
+                        legend=alt.Legend(orient="top")))
+    tooltip = [alt.Tooltip("time:T", title="Time", format="%Y-%m-%d %H:%M"),
+               alt.Tooltip("source:N", title="Source"),
+               alt.Tooltip("temperature:Q", title="°C", format=".2f")]
+    # A gap of more than 2 hours (node off, or hours left out of the dataset) breaks the line
+    data = data.sort_values(["source", "time"])
+    data["segment"] = (data.groupby("source")["time"].diff() > pd.Timedelta(hours=2)) \
+        .groupby(data["source"]).cumsum()
+    base = base.properties(data=data)
+    node = base.transform_filter(alt.datum.source != "Forecast (wttr.in)") \
+        .mark_line(strokeWidth=2, interpolate="monotone").encode(detail="segment:N")
+    forecast = base.transform_filter(alt.datum.source == "Forecast (wttr.in)") \
+        .mark_point(size=90, filled=True, shape="diamond").encode(tooltip=tooltip)
+    hover = base.transform_filter(alt.datum.source != "Forecast (wttr.in)") \
+        .mark_circle(size=40, opacity=0).encode(tooltip=tooltip)
+    layers = []
+    if thresholds:  # shaded risk zones below each threshold + dashed lines
+        low = min(thresholds)
+        zones = pd.DataFrame({"start": [low_end], "end": [low]})
+        layers.append(alt.Chart(zones).mark_rect(color="#c0392b", opacity=0.10, clip=True)
+                      .encode(y=alt.Y("start:Q", scale=y_scale), y2="end:Q"))
+        rules = pd.DataFrame({"value": thresholds})
+        layers.append(alt.Chart(rules).mark_rule(strokeDash=[6, 4], color="#7f8c8d")
+                      .encode(y=alt.Y("value:Q", scale=y_scale)))
+    return alt.layer(*layers, node, hover, forecast).properties(height=380)
 
 
 def main():
@@ -132,20 +168,31 @@ def main():
 
     # ---- 4. recent temperature history ----
     st.header(f"Temperature, last {RECENT_HOURS} hours")
-    since = datetime.now() - timedelta(hours=RECENT_HOURS)
-    series = {}
+    # The window ends at the newest data (or now), so old captures can be shown too
+    end = readings["time"].max() if not readings.empty else datetime.now()
+    since = end - timedelta(hours=RECENT_HOURS)
+    points = []  # long format: time, temperature, source
     if not readings.empty:
         recent = readings[readings["time"] >= since]
-        series["node BME280"] = recent.set_index("time")["temperature_c"]
+        points.append(pd.DataFrame({"time": recent["time"], "temperature": recent["temperature_c"],
+                                    "source": "Node BME280"}))
         if "reference_temperature_c" in recent and recent["reference_temperature_c"].notna().any():
-            series["node probe (DS18B20)"] = recent.set_index("time")["reference_temperature_c"]
+            points.append(pd.DataFrame({"time": recent["time"],
+                                        "temperature": recent["reference_temperature_c"],
+                                        "source": "Node probe (DS18B20)"}))
     if not forecast.empty:
-        recent = forecast[forecast["time"] >= since]
-        series["forecast"] = recent.set_index("time")["temperature (C)"]
-    if any(len(s) for s in series.values()):
-        st.line_chart(pd.DataFrame(series))
-    else:
+        # forecast points inside the window, plus the next 24 hours
+        recent = forecast[(forecast["time"] >= since) & (forecast["time"] <= end + timedelta(hours=24))]
+        points.append(pd.DataFrame({"time": recent["time"],
+                                    "temperature": recent["temperature (C)"],
+                                    "source": "Forecast (wttr.in)"}))
+    data = pd.concat(points).dropna() if points else pd.DataFrame()
+    if data.empty:
         st.info("No temperature data in this period yet.")
+    else:
+        st.altair_chart(temperature_chart(data, thresholds), use_container_width=True)
+        st.caption("Hover for values. Dashed lines are the risk thresholds of "
+                   "ml/config.yaml; the red area is the risk class.")
 
     # Optional automatic refresh, for a live demo (scraper/config.yaml)
     refresh_seconds = int(config.get("refresh_seconds") or 0)
