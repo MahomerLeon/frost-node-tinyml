@@ -76,6 +76,7 @@ split:
 node:
   valid_periods:
     - ["2026-11-21 19:45:00", "2026-11-22 07:40:00"]   # night 2: both sensors outside the box
+    - ["2026-11-22 19:40:00", "2026-11-23 08:22:00"]   # night 3: BME280 reads about 1.2 C below the probe
 
 # ---- Calibration of the node temperature ----
 # Offset of the BME280 against the DS18B20 probe (BME280 minus probe, in C),

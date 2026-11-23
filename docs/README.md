@@ -9,6 +9,7 @@
 | [wiring_diagram_both.png](wiring_diagram_both.png) | Complete current setup: ESP32-S3 with BME280, INA219 and DS18B20 probe, and the Pico alone, both connected to the PC | R7 |
 | [first_night_pirgua_2026-11-20.png](first_night_pirgua_2026-11-20.png) | Chart of the first outdoor night (BME280 inside the box, probe outside) | R4 |
 | [night2_pirgua_2026-11-21.png](night2_pirgua_2026-11-21.png) | Chart of the second outdoor night (both sensors outside; valid) | R4 |
+| [night3_pirgua_2026-11-22.png](night3_pirgua_2026-11-22.png) | Chart of the third outdoor night (valid; BME280 1.2 °C below the probe) | R4 |
 | [capture_protocol.md](capture_protocol.md) | How the own dataset is captured, labeled, versioned and split | R4 |
 | [data_structures.md](data_structures.md) | Circular buffer and hash table, with their complexity | R6 |
 | [resource_report.md](resource_report.md) | How Flash, RAM, latency, CPU and power are measured; ESP32-S3 vs. Pico; results | R7 |

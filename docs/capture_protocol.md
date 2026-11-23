@@ -2,9 +2,9 @@
 
 Status: **draft**. One outdoor night has been recorded (2026-11-20/21), but
 it is not part of the dataset because of a sensor placement error (see
-"Lessons from the first night"). The second night (2026-11-21/22), with both
-sensors outside, is valid: 143 readings, minimum 13.2 °C, so only class 0.
-There are no cold nights in the dataset yet.
+"Lessons from the first night"). The second and third nights (2026-11-21/22
+and 22/23), with both sensors outside, are valid: 296 readings in total,
+minimum 12.4 °C, so only class 0. There are no cold nights in the dataset yet.
 
 ## Where and how the node is installed
 
@@ -93,6 +93,21 @@ correction. No correction is applied yet
 needed before deciding.
 
 ![Night 2](night2_pirgua_2026-11-21.png)
+
+Result of the third night (2026-11-22 19:41 to 2026-11-23 08:21, 153
+readings, the scraper ran all night): BME280 minus probe is **-1.16 °C**
+(standard deviation 0.46 °C) from 21:00 to 05:00, against -0.12 °C on the
+second night, with the same sensors. The offset is therefore **not constant**
+and no correction is applied. Possible causes, not checked: a different
+position of the sensors inside the shield, a wet BME280 (humidity reached
+85 % and the air was 2.4 °C above its dew point), or an error of either
+sensor. The ice-water test would show which sensor is right.
+
+![Night 3](night3_pirgua_2026-11-22.png)
+
+Forecast on the nights measured: wttr.in gave 12 °C at 21:00 both nights,
+while the probe read 14 and 15 to 16 °C. Only two cases, but the forecast
+seems to underestimate at night.
 
 Data periods: only the periods listed in `node.valid_periods` of
 `ml/config.yaml` enter the dataset (see `data/raw/node/README.md`).

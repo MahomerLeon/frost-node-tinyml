@@ -41,3 +41,4 @@ secrets.h
 # ---- Log files ----
 *.log
 
+*.log.err

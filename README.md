@@ -76,10 +76,11 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 No requirement is complete yet. What blocks them:
 
 - **Capture:** the node works outdoors without a PC. First night (2026-11-20/21)
-  discarded: the BME280 was inside the box. Second night (2026-11-21/22) is
-  valid: 143 readings, both sensors outside, BME280 vs. probe -0.12 °C. Its
-  minimum was 13.2 °C, so the dataset has **only class 0**; it needs cold
-  nights. The scraper did not run that night.
+  discarded: the BME280 was inside the box. Second and third nights
+  (2026-11-21/22, 22/23) are valid: 296 readings, both sensors outside. The
+  minimum was 12.4 °C, so the dataset has **only class 0**; it needs cold
+  nights. The scraper ran all of the third night. BME280 minus probe was
+  -0.12 °C and then -1.16 °C, so no calibration is applied yet.
 - **Model:** no real dataset or model exists yet. Everything in `ml/` and
   `firmware/inference` was checked with a placeholder model in a temporary
   folder; those numbers are not results.
