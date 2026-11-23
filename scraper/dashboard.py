@@ -46,6 +46,9 @@ def main():
     st.title("Frost-risk node vs. regional forecast")
 
     config = load_config(os.environ.get("FROST_SCRAPER_CONFIG", DEFAULT_CONFIG))
+    # Optional text shown at the top (for example to label a demo)
+    if config.get("banner"):
+        st.warning(config["banner"])
     thresholds = read_thresholds(config)
     table = load_forecast_table(config)  # hash table (municipality, time) -> forecast
 

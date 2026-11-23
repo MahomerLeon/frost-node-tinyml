@@ -3,6 +3,9 @@
 
 municipality: Tunja
 
+# Optional text shown at the top of the dashboard. Leave empty for normal use.
+banner: ""
+
 # HTML page that is scraped. "m" = metric units, "lang=en" = English labels
 # (the parser looks for the English words Morning, Noon, Evening, Night).
 url: "https://wttr.in/Tunja?m&lang=en"
