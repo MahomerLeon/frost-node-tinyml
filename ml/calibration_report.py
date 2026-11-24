@@ -10,7 +10,7 @@ Run from the repository root:
     python ml/calibration_report.py --start "2026-11-17 10:00" --end "2026-11-17 14:00"
 
 --start and --end keep only the readings of one period, for example the
-hours of the ice-water test. Times are local time.
+night hours. Times are local time.
 
 The script only reads and reports. It does not correct any file: whether a
 correction is applied, and how, is a decision to write in the protocol.

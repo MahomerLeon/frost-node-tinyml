@@ -66,14 +66,14 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 
 | Req. | What it asks | Folder | Status |
 |---|---|---|---|
-| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Code written; verified on the board with a placeholder model. Pending: real model |
-| R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | Code written and run as a pipeline test. Pending: real dataset, real F1 comparison |
-| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested; real BME280 readings verified on the board. Pending: capture in Pirgua (no data yet) |
+| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Code written; verified on the board with a placeholder model. Pending: load the real model (`firmware/inference/model_data.h` is already generated) |
+| R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | Done with dataset v1 (public data for the test set): macro F1 0.678 float, 0.683 int8 (+0.005), 99.34 % same class (`ml/models/metrics_v1_*.json`) |
+| R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested; real BME280 readings verified on the board. Two valid nights captured in Pirgua (296 readings, class 0 only); no cold night happened |
 | R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | Scraper and dashboard working with the real page. Pending: comparison with real node predictions |
 | R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | Both implemented, tested and documented |
 | R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `firmware/pico_benchmark/`, `docs/` | Benchmark verified on the ESP32-S3 and the Raspberry Pi Pico with a placeholder model (see `docs/resource_report.md`). Pending: power (INA219), real model |
 
-No requirement is complete yet. What blocks them:
+The project is closed with these open items:
 
 - **Capture:** the node works outdoors without a PC. First night (2026-11-20/21)
   discarded: the BME280 was inside the box. Second and third nights
@@ -81,9 +81,10 @@ No requirement is complete yet. What blocks them:
   minimum was 12.4 °C, so the dataset has **only class 0**; it needs cold
   nights. The scraper ran all of the third night. BME280 minus probe was
   -0.12 °C and then -1.16 °C, so no calibration is applied yet.
-- **Model:** no real dataset or model exists yet. Everything in `ml/` and
-  `firmware/inference` was checked with a placeholder model in a temporary
-  folder; those numbers are not results.
+- **Model:** trained on dataset v1 (3 classes, 20 inputs, 3 160 B int8). The
+  test split has **no own-node windows**, so its F1 describes public data, not
+  Pirgua. The resource figures of R7 are still those of a placeholder model
+  until the real one is loaded on the boards.
 - **Not run on the board yet:** a full 3 h window of real readings with a
   prediction, and the power measurement through the INA219 on either board.
 - **Calibration:** done in place during the capture (both sensors together

@@ -29,19 +29,21 @@ python ml/convert_tflite.py
 python ml/validate_on_device.py COM9
 ```
 
-## The threshold is not decided
+## The thresholds
 
-`prepare_dataset.py` stops with an error until `labeling.thresholds_c` is
-filled in `config.yaml`. It is an agronomic decision and no script contains a
-default value.
+`labeling.thresholds_c` in `config.yaml` is [2.0, 6.0] (decided 2026-11-21, see
+`docs/capture_protocol.md`). 2 °C is close to the critical temperatures of potato
+in FAO Table 4.5 (-1 to -3 °C by stage); 6 °C is an operational band, not an
+agronomic value. `prepare_dataset.py` stops with an error if the list is empty.
 
 ## Status
 
-The whole chain (prepare, train, convert, on-device validation) was run once
-as a **pipeline test** with a placeholder threshold and output in a temporary
-folder, only to check that the code works. Those numbers are not project
-results and were not saved in the repository. No real dataset version or
-model exists yet.
+Dataset v1, the float model and the int8 model were built on 2026-11-24 with
+the thresholds 2 and 6 °C (`data/processed/dataset_v1_report.txt`,
+`ml/models/`). Test split, evaluated once: macro F1 0.678 float and 0.683
+int8; the test windows come only from IDEAM and the Zenodo dataset, none from
+the node. Not done yet: `validate_on_device.py` with this model, because the
+board has not been loaded with it.
 
 ## Notes on the method
 

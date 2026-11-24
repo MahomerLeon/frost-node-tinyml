@@ -1,0 +1,44 @@
+Dataset v1
+grid: 30 min, window: 3 h, horizon: 6 h
+classes: 3, thresholds (C): [2.0, 6.0]
+
+[node] stations: 1, pressure available: yes
+[node] coverage: 51 of 74 grid steps have temperature and humidity (68.9%)
+[node] interpolated: 0 of those steps (0.0%)
+[node] real cold events (separate episodes with temperature <= 2.0 C): 0
+[node] real cold events (separate episodes with temperature <= 6.0 C): 0
+[ideam] stations: 1, pressure available: yes
+[ideam] coverage: 83621 of 134451 grid steps have temperature and humidity (62.2%)
+[ideam] interpolated: 41717 of those steps (49.9%)
+[ideam] real cold events (separate episodes with temperature <= 2.0 C): 9
+[ideam] real cold events (separate episodes with temperature <= 6.0 C): 187
+[zenodo] stations: 22, pressure available: no
+[zenodo] coverage: 629359 of 1875016 grid steps have temperature and humidity (33.6%)
+[zenodo] interpolated: 62824 of those steps (10.0%)
+[zenodo] real cold events (separate episodes with temperature <= 2.0 C): 448
+[zenodo] real cold events (separate episodes with temperature <= 6.0 C): 3547
+
+windows: 699850
+
+windows per split, source and class:
+label              0      1     2
+split source                     
+test  ideam    11621    410    26
+      zenodo   93791   7634   808
+train ideam    54762   1865    74
+      node         9      0     0
+      zenodo  376095  37914  4942
+val   ideam    11851    385    14
+      node         8      0     0
+      zenodo   87806   8933   902
+
+days per split:
+split
+test      352
+train    1639
+val       351
+
+station-days per class in train (minimum configured: 10):
+  class 0: 10173
+  class 1: 3139
+  class 2: 460

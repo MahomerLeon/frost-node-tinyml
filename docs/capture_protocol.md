@@ -78,9 +78,8 @@ shield, so every reading of the capture also compares the two sensors.
    files are never changed. Only the temperature is corrected; the humidity
    is used as measured.
 
-Limitation: without the ice-water test, the probe itself is not checked
-against a known temperature; the offset says how much the two sensors
-differ, not which one is right.
+Limitation: the probe itself is not checked against a known temperature;
+the offset says how much the two sensors differ, not which one is right.
 
 Result of the second night (2026-11-21 19:49 to 2026-11-22 07:35, both
 sensors together outside the box, 143 readings): BME280 minus probe is
@@ -101,7 +100,7 @@ second night, with the same sensors. The offset is therefore **not constant**
 and no correction is applied. Possible causes, not checked: a different
 position of the sensors inside the shield, a wet BME280 (humidity reached
 85 % and the air was 2.4 °C above its dew point), or an error of either
-sensor. The ice-water test would show which sensor is right.
+sensor. Which sensor is right was not determined.
 
 ![Night 3](night3_pirgua_2026-11-22.png)
 

@@ -87,7 +87,8 @@ def print_metrics(name, metrics):
     print(f"\n--- {name} ---")
     print(f"F1 macro: {metrics['f1_macro']:.4f}")
     for label, values in metrics["per_class"].items():
-        kind = "no risk" if label == "0" else "risk"
+        # with 3 classes: 0 no risk, 1 caution, 2 risk (with 2 classes: 0 and 1)
+        kind = {"0": "no risk", "1": "caution", "2": "risk"}.get(label, label)
         print(f"class {label} ({kind}): precision {values['precision']:.4f}  "
               f"recall {values['recall']:.4f}  F1 {values['f1']:.4f}  "
               f"support {values['support']}")
