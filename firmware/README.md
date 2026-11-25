@@ -219,9 +219,14 @@ sensors** (2026-11-17):
 - 2026-11-17, with the sensors connected: `STATUS` shows `sensor=ok` and
   `power_meter=ok`, and the benchmark prints its power lines. They read about
   0 mA because the board was powered by USB, not through the INA219.
-- Not verified yet: a complete 3 h window with real readings (the first
-  prediction needs 3 hours of data) and a real power measurement through the
-  INA219.
+- 2026-11-25, with the final model (dataset v1, 3 classes): `STATUS` shows
+  `model=ok`, `model_inputs=20 classes=3`; `BENCHMARK` gives 0.0528 ms per
+  inference and 13 509 CPU cycles; `validate_on_device.py` gives the same class
+  as the PC in 100 of 100 vectors and 50 of 50 windows (identical int8 output in
+  95 and 48). The board was then loaded with `logger/` again for the demo.
+- Not verified: a complete 3 h window with real readings (the first
+  prediction needs 3 hours of data). Power was not measured: the board could
+  not be powered through the INA219.
 
 Reference probe (DS18B20 on GPIO4): read by `logger/` and `inference/` into the
 column `reference_temperature_c`, only to calibrate the BME280; the model does

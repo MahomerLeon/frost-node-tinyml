@@ -1,0 +1,83 @@
+% Instructivo para grabar el video de la demo (en espanol, para el equipo).
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{hyperref}
+\setlist{itemsep=2pt,topsep=3pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+\newcommand{\cmd}[1]{\par\noindent\fcolorbox{black!20}{black!4}{\parbox{0.96\linewidth}{\ttfamily\small #1}}\par}
+
+\begin{document}
+
+{\LARGE\bfseries Instructivo para grabar el video de la demo}\\[2pt]
+{\large Nodo TinyML de riesgo de helada --- Vereda Pirgua, Tunja}
+
+\medskip
+Los lineamientos piden un video \textbf{MP4 de 5 minutos como m\'aximo}, como respaldo de la demo en vivo. Este instructivo propone mostrar las tres capas del sistema: el nodo, el scraper y el dashboard.
+
+\section*{1. Antes de grabar (15 min)}
+\begin{enumerate}
+\item \textbf{Placa limpia} (ya est\'a con 0 filas) y conectada por USB. Anota el puerto (por ejemplo COM9).
+\item \textbf{Wi-Fi:} la placa necesita la red configurada en \texttt{secrets.h} para fijar la hora. Si no hay esa red, el listener le pone la hora desde el PC al conectarse.
+\item \textbf{Pantalla del PC:} resoluci\'on normal, notificaciones silenciadas (Windows + A, ``No molestar''), carpetas y pesta\~nas personales cerradas.
+\item \textbf{Sensores:} BME280 y sonda juntos y la caja a la vista. Algo fr\'io cerca (un vaso con hielo, sin mojar el sensor) hace que la lectura cambie en pantalla.
+\item \textbf{Dashboard en vivo:} pon \texttt{refresh\_seconds: 10} en \texttt{scraper/config.yaml} antes de grabar.
+\item \textbf{Dos grabadores:} el PC con Windows + Alt + R (Xbox Game Bar) o con OBS, y el celular para el plano del hardware, siempre en horizontal.
+\item \textbf{Tres terminales} abiertas en la ra\'iz del repositorio, sin ejecutar todav\'ia:
+\end{enumerate}
+\cmd{python scraper/node\_listener.py COM9}
+\cmd{python scraper/forecast\_scraper.py}
+\cmd{python -m streamlit run scraper/dashboard.py}
+
+El listener fija la hora de la placa, pide una lectura al instante y guarda cada lectura en el archivo \texttt{readings.csv} de la carpeta \texttt{data/raw/node\_live}. El scraper guarda el pron\'ostico cada hora. El dashboard lee los dos archivos. No abras el monitor serie al mismo tiempo que el listener: los dos necesitan el mismo puerto.
+
+\section*{2. Guion (aprox. 4:30)}
+\begin{tabular}{@{}>{\raggedright}p{2.1cm}>{\raggedright}p{5.3cm}>{\raggedright\arraybackslash}p{8cm}@{}}
+\toprule
+Tiempo & Qu\'e se ve & Qu\'e se dice \\
+\midrule
+0:00--0:30 & T\'itulo y luego la caja del nodo & Qui\'enes son, el problema (heladas en Pirgua) y el objetivo \\
+0:30--1:15 & Celular sobre el hardware & ESP32-S3, BME280, DS18B20 e INA219 (conectado; el consumo no se midi\'o). Por qu\'e esa placa y la Pico como comparaci\'on \\
+1:15--2:15 & Terminal con el listener & La placa mide y manda lecturas por USB, una cada 5 min; al arrancar pide una lectura para no esperar \\
+2:15--3:15 & Dashboard & \'Ultima lectura, sonda frente a BME280, pron\'ostico del scraper y los umbrales de 2 y 6\,$^\circ$C \\
+3:15--4:00 & Terminal con el scraper y el CSV & Scraping cada hora con tabla hash; buffer circular en la placa; complejidad $O(1)$ \\
+4:00--4:30 & Tabla de recursos y F1 & F1 0,678 (float) y 0,683 (int8), y lo que falta: noches fr\'ias en Pirgua \\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Dilo tal como es:} no hubo noches fr\'ias, as\'i que la placa no ha clasificado una helada real. Esa honestidad pesa m\'as en la r\'ubrica que una demo ``perfecta''.
+
+\section*{3. Despu\'es de grabar}
+\begin{itemize}
+\item Exporta en MP4 (H.264). Si OBS sac\'o MKV: \textit{Archivo $\rightarrow$ Remux de grabaciones}.
+\item Mira el video completo una vez: audio claro, texto de la terminal legible, sin contrase\~nas ni la red Wi-Fi a la vista (el archivo \texttt{secrets.h} no debe aparecer).
+\item Verifica que dura \textbf{menos de 5:00}.
+\item Gu\'ardalo fuera del repositorio; un MP4 grande no va a Git.
+\end{itemize}
+
+\section*{4. Qu\'e se entrega (seg\'un los lineamientos)}
+\begin{tabular}{@{}>{\raggedright}p{3.3cm}>{\raggedright\arraybackslash}p{12cm}@{}}
+\toprule
+Entregable & Formato \\
+\midrule
+Propuesta inicial & PDF, IEEE Conference, ingl\'es, m\'aximo 4 p\'aginas \\
+Reporte final & PDF, IEEE Conference, ingl\'es, 6 a 10 p\'aginas \\
+Demo funcional & En vivo, m\'as video MP4 de respaldo de 5 min como m\'aximo \\
+Sustentaci\'on oral & 15 min m\'as preguntas; individual, sobre las tres asignaturas \\
+\bottomrule
+\end{tabular}
+
+\section*{5. Validaci\'on en el dispositivo (hecha el 25 de noviembre)}
+Con el modelo final cargado en la ESP32-S3, la placa dio la misma clase que el PC en 100 de 100 vectores de prueba y en 50 de 50 ventanas crudas, con 0,053\,ms por inferencia. Despu\'es se volvi\'o a cargar el firmware de recolecci\'on (\texttt{logger}), que es el que usa este video.
+El consumo de energ\'ia no se midi\'o, porque no fue posible alimentar la placa a trav\'es del INA219. Si lo preguntan, se responde as\'i, sin dar cifras.
+
+\end{document}

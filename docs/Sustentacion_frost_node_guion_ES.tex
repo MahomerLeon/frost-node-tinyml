@@ -1,0 +1,84 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}\usepackage[T1]{fontenc}\usepackage[spanish]{babel}
+\usepackage[margin=2.2cm]{geometry}\usepackage{booktabs}\usepackage{array}
+\setlength{\parindent}{0pt}\setlength{\parskip}{6pt}
+\begin{document}
+{\LARGE\bfseries Sustentaci\'on de 10 minutos: guion}\\[2pt]
+{\large Nodo TinyML de riesgo de helada --- Pirgua, Tunja}
+
+\medskip
+Presentan Mateo Carvajal (dispositivo y recursos), Mateo \'Avila (datos y estructuras) y Mahomer (introducci\'on, modelo, demo y cierre). El reparto es una sugerencia y se puede cambiar. Los tres responden preguntas de las tres asignaturas.
+
+\section*{Tiempos}
+\begin{tabular}{@{}rp{5.4cm}p{3cm}rr@{}}\toprule N.$^\circ$ & Tema & Quien habla & Tiempo & Palabras \\\midrule
+1 & Portada & Mahomer & 0:20 & 40 \\
+2 & El problema & Mahomer & 0:45 & 78 \\
+3 & Sistema y dispositivo & Mateo Carvajal & 1:15 & 135 \\
+4 & Adquisición y dataset & Mateo Ávila & 1:15 & 111 \\
+5 & Modelo e int8 & Mahomer & 1:00 & 111 \\
+6 & Estructuras de datos & Mateo Ávila & 1:15 & 108 \\
+7 & Scraper y dashboard & Mateo Ávila & 0:45 & 54 \\
+8 & Lo medido en Pirgua & Mateo Carvajal & 0:45 & 92 \\
+9 & Recursos (R7) & Mateo Carvajal & 1:00 & 113 \\
+10 & Demo en vivo & Mahomer & 0:30 & 34 \\
+11 & Limitaciones y conclusiones & Mahomer & 0:45 & 74 \\
+\bottomrule\end{tabular}
+
+El texto de abajo suma 950 palabras: a 140 palabras por minuto son unos 6.8 minutos hablados. El resto del tiempo (hasta 10:00) es para los cambios de orador, las pausas y la demo en vivo. Los tiempos de la tabla suman 9:35, con 25 segundos de margen.
+
+\section*{Texto para decir, por diapositiva}
+El texto se puede decir con sus propias palabras; lo importante son las cifras.
+\subsection*{1. Portada \hfill \small Mahomer, 0:20}
+Buenos días. Somos Mateo Carvajal, Mateo Ávila y Mahomer. Les presentamos un nodo de bajo costo que clasifica el riesgo de helada en el propio dispositivo y compara su resultado con un pronóstico web, en la vereda Pirgua, en Tunja.
+
+\subsection*{2. El problema \hfill \small Mahomer, 0:45}
+Las heladas dañan los cultivos de papa del altiplano de Boyacá, y quienes cultivan en Pirgua suelen enterarse cuando el daño ya ocurrió. El pronóstico se emite por municipio, y la estación oficial más cercana puede estar lejos del lote. Esa estación, la del IDEAM en Tunja, no registró ninguna lectura horaria de cero grados o menos entre 2019 y 2026. Nuestra hipótesis es que en Pirgua hace más frío, por eso hay que medir en el sitio.
+
+\subsection*{3. Sistema y dispositivo \hfill \small Mateo Carvajal, 1:15}
+El nodo es una ESP32-S3 con un sensor BME280 de temperatura, humedad y presión, una sonda de referencia y un INA219 conectado para medir el consumo, una medición que no hicimos. La inferencia corre en la placa: un buffer circular guarda las últimas tres horas y un modelo int8 de TensorFlow Lite Micro entrega la clase de riesgo. El PC solo recibe los datos, extrae el pronóstico y muestra el dashboard. La ESP32-S3 tiene dos núcleos a 240 megahercios, 512 kilobytes de SRAM y 16 megabytes de flash, y la elegimos por recomendación del docente. Reconocemos que sobra capacidad, por eso medimos también una Raspberry Pi Pico con el mismo modelo. La Pico no tiene Wi-Fi, así que no recupera la hora tras un corte de energía y el modelo usa la hora del día.
+
+\subsection*{4. Adquisición y dataset \hfill \small Mateo Ávila, 1:15}
+El sensor mide cada cinco minutos, se promedia en pasos de treinta y una ventana de tres horas predice el mínimo de las seis horas siguientes. La primera noche se descartó porque el BME280 estaba dentro de la caja y marcó cuatro grados de más. Quedaron dos noches válidas con doscientas noventa y seis lecturas, todas de clase cero. Para entrenar usamos además datos públicos del IDEAM y de Zenodo, en una versión uno de casi setecientas mil ventanas. Las clases son riesgo hasta dos grados, precaución hasta seis y sin riesgo por encima. La partición es por días completos y estratificada, para que no haya fuga entre entrenamiento y prueba.
+
+\subsection*{5. Modelo e int8 \hfill \small Mahomer, 1:00}
+El modelo es una red densa pequeña, de 16 y 8 neuronas, con tres clases de salida. Convertido a int8 pesa tres mil ciento sesenta bytes. En el conjunto de prueba, con ciento catorce mil ventanas públicas, el F1 promedio fue 0,678 en punto flotante y 0,683 en int8, así que la cuantización no empeoró el modelo. Lo cargamos en la ESP32-S3: dio la misma clase que el computador en cien de cien vectores de prueba y en cincuenta de cincuenta ventanas crudas. Detecta casi todas las heladas, pero con muchas falsas alarmas. Debemos ser claros: son datos públicos, y no describen el desempeño en Pirgua porque no hubo noches frías.
+
+\subsection*{6. Estructuras de datos \hfill \small Mateo Ávila, 1:15}
+Escribimos dos estructuras sin librerías. En el nodo, un buffer circular de seis posiciones: insertar y leer cuesta tiempo constante, la memoria es fija y no usa heap, que en un microcontrolador puede fragmentarse. Un arreglo que desplaza los datos costaría O de n. En el scraper, una tabla hash con encadenamiento guarda el pronóstico con la llave municipio, fecha y hora. Buscar y guardar cuesta O de uno en promedio, y la tabla duplica sus cubetas cuando pasa de cero coma setenta y cinco llaves por cubeta. Para m consultas sobre n pronósticos, una lista costaría O de m por n, y la tabla, O de m.
+
+\subsection*{7. Scraper y dashboard \hfill \small Mateo Ávila, 0:45}
+El scraper lee cada hora la página HTML de wttr.in para Tunja, con reintentos y registro de errores. El dashboard muestra la lectura del nodo, la sonda y el pronóstico, y marca cuando no coinciden. Su límite es que la fuente solo da cuatro horas del día y no cubre el mínimo de madrugada.
+
+\subsection*{8. Lo medido en Pirgua \hfill \small Mateo Carvajal, 0:45}
+En las dos noches válidas, la sonda no bajó de doce coma cuatro grados y el BME280 no bajó de once coma cuatro cinco. El desfase entre los dos sensores fue de menos cero coma doce grados una noche y menos uno coma dieciséis la otra, así que no es constante y no aplicamos ninguna corrección. No sabemos la causa. El pronóstico dio doce grados a las nueve de la noche cuando la sonda marcaba entre catorce y dieciséis. Y no hubo noches frías, por eso no hemos clasificado una helada real.
+
+\subsection*{9. Recursos (R7) \hfill \small Mateo Carvajal, 1:00}
+Medimos los recursos con el comando de benchmark del firmware y el modelo final cargado. En la ESP32-S3, cada inferencia tarda cero coma cero cinco tres milisegundos en promedio, unos trece mil quinientos ciclos de CPU, sobre doscientas ejecuciones. El tensor arena usa ochocientos setenta y seis bytes, el cinco coma tres cinco por ciento, el programa ocupa el dos coma ocho cuatro por ciento del flash, el heap el catorce por ciento y la pila el veintinueve. Todo está por debajo del treinta por ciento, así que la placa está sobredimensionada. La Pico, con el modelo de prueba, tardó cero coma cero ocho siete milisegundos. El consumo de energía no lo medimos.
+
+\subsection*{10. Demo en vivo \hfill \small Mahomer, 0:30}
+Ahora mostramos el nodo funcionando: la lectura llega al PC, el dashboard la dibuja junto al pronóstico, y si enfriamos el sensor se ve el cambio. Si algo falla, tenemos un video de respaldo.
+
+\subsection*{11. Limitaciones y conclusiones \hfill \small Mahomer, 0:45}
+Lo que sí demostramos es que la cadena completa funciona, con el modelo final corriendo en la placa. Lo que no demostramos es lo central: que el nodo clasifique bien una helada real, porque no hubo noches frías y el modelo se evaluó con datos públicos. No medimos el consumo de energía, y quedan pendientes las noches frías y la calibración. El código y los datos son públicos. Gracias, estamos atentos a sus preguntas.
+
+\section*{Preguntas probables}
+\textbf{¿Por qué una ESP32-S3 si usa menos del 30 \% de los recursos?}\\ Se mantuvo por recomendación del docente y porque el Wi-Fi permite recuperar la hora por NTP, que el modelo usa como entrada. Lo reconocemos como sobredimensionado y por eso medimos la Pico como alternativa con el mismo modelo.
+\textbf{¿El nodo detecta heladas?}\\ No lo hemos podido demostrar: en las dos noches válidas no se bajó de 12,4 °C (sonda) ni de 11,45 °C (BME280). Se demostró que la cadena completa funciona; el F1 de 0,683 es con datos públicos.
+\textbf{¿Por qué 2 °C y 6 °C?}\\ 2 °C está cerca de las temperaturas críticas de la papa de la FAO (de -1 a -3 °C según la etapa), con margen porque los sensores están a 1,5 m. 6 °C es una banda operativa para tener ejemplos de noches frías; no es un valor agronómico.
+\textbf{¿Qué pasó con la primera noche?}\\ El BME280 estaba dentro de la caja y marcó en promedio 4,4 °C más que la sonda. Se descartó del dataset y quedó la regla de que el BME280 mide aire exterior.
+\textbf{¿Por qué el desfase entre sensores cambia (-0,12 y -1,16 °C)?}\\ No lo sabemos: puede ser la posición dentro de la protección, un BME280 húmedo o un error de un sensor. No hicimos una prueba contra una temperatura conocida, así que no aplicamos corrección.
+\textbf{¿Por qué una tabla hash y un buffer circular?}\\ Buffer circular: push y acceso en O(1), memoria fija, sin heap en el microcontrolador. Tabla hash: buscar el pronóstico por (municipio, hora) en O(1) promedio frente a O(n) con una lista.
+\textbf{¿Cómo se evitó la fuga de datos?}\\ La partición es por días completos y estratificada por la clase más alta de cada día, con semilla fija; un día queda en el mismo conjunto para todas las fuentes.
+\textbf{¿Qué perdió la cuantización a int8?}\\ Nada medible: F1 promedio 0,678 en float y 0,683 en int8 en el mismo conjunto de prueba; coinciden en 99,34 % de las ventanas.
+\textbf{¿Por qué wttr.in y no el IDEAM?}\\ El IDEAM publica su pronóstico en aplicaciones de mapas y boletines, no como números en HTML. wttr.in no es oficial y solo da 09, 12, 18 y 21 h; lo documentamos como limitación.
+\textbf{¿Qué falta?}\\ Noches frías para validar en Pirgua, la calibración, el consumo de energía y repetir la comparación con la Pico con el modelo final.
+\textbf{¿El modelo corre de verdad en la placa?}\\ Sí. Cargado en la ESP32-S3, dio la misma clase que el PC en 100 de 100 vectores de prueba y en 50 de 50 ventanas crudas; la salida int8 fue idéntica en 95 de 100 y 48 de 50 (diferencias de hasta 6 unidades, sin cambiar la clase). Tarda 0,053 ms por inferencia.
+
+\textbf{¿Cuánto consume el nodo?}\\ No lo medimos. El INA219 está conectado, pero no fue posible alimentar la placa a través de él, así que no reportamos ninguna cifra de consumo.
+
+\section*{Antes de entrar}
+\begin{itemize}\item Placa conectada y listener y dashboard abiertos (instructivo del video).
+\item Video MP4 de respaldo en el escritorio.
+\item Ensayar una vez con cron\'ometro: si pasa de 10 minutos, acortar la demo.
+\end{itemize}
+\end{document}

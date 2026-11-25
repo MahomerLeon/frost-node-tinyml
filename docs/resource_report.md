@@ -1,14 +1,16 @@
 # Resource report (R7)
 
-Status: **no final measurements yet.** The final numbers must be measured
-with the real model (trained with a decided threshold and own data), and the
-measurement must be repeatable during the presentation.
+Status: **ESP32-S3 measured with the final model on 2026-11-25** (see Final
+measurements). Power was not measured, and the Pico was only measured with the
+placeholder model.
 
 ## How the measurements are taken
 
 Everything comes from the `BENCHMARK` command of `firmware/inference`
-(procedure in [firmware/README.md](../firmware/README.md); power in
-[hardware_setup.md](hardware_setup.md), section 6).
+(procedure in [firmware/README.md](../firmware/README.md)).
+
+**Power and energy were not measured**: the board could not be powered through
+the INA219. No consumption figure is reported or estimated.
 
 | Metric | Unit | How it is obtained | Total used for the percentage |
 |---|---|---|---|
@@ -21,18 +23,14 @@ Everything comes from the `BENCHMARK` command of `firmware/inference`
 | CPU cycles per inference | cycles | cycle counter of the core around each `Invoke()` (`ESP.getCycleCount()` on the ESP32-S3, `rp2040.getCycleCount64()` on the Pico), mean over 200 runs | — |
 | Throughput | inferences/s | 1000 divided by the mean latency in ms | — |
 | CPU load | % | mean latency divided by the period between inferences (30 min) | — |
-| Power | mA, mW | INA219 in series with the 5 V supply, averaged over 50 readings, idle and while running inferences without pause | — |
-| Energy per inference | mJ | power while inferring × mean latency | — |
 
 Limits of the method:
 
 - The CPU load is an estimate from the latency, not a measurement with the
   profiling tools of the manufacturer SDK. The CPU cycles come from the
-  hardware cycle counter (added on 2026-11-21, not measured on the boards
-  yet).
-- The INA219 is before the 5 V pin, so power includes the losses of the
-  voltage regulator of the board.
-- Latency and power are measured with the CPU at 240 MHz and Wi-Fi off.
+  hardware cycle counter (measured on the ESP32-S3 with the final model; not
+  on the Pico).
+- Latency is measured with the CPU at 240 MHz and Wi-Fi off.
 
 ## Pipeline test (not a project result)
 
@@ -62,20 +60,35 @@ added), measured on 2026-11-17 without sensors:
 
 ## Final measurements
 
-To fill in with the real model.
+ESP32-S3 with the final model (dataset v1, 3 classes, 20 inputs), `BENCHMARK`
+command on 2026-11-25, board powered by the PC.
 
 | Metric | Value | Percentage |
 |---|---|---|
-| Program size | | |
-| Model size | | |
-| Tensor arena | | |
-| Heap, peak use | | |
-| Stack, peak use | | |
-| Latency (mean, std, runs) | | |
-| CPU load | | |
-| Power idle / inferring | | |
-| Energy per inference | | |
-| F1 on the device vs. float model | | |
+| Program size | 476 480 bytes | 36.35 % of the program partition; 2.84 % of the flash |
+| Model size | 3 160 bytes | 0.02 % of the 16 MB flash |
+| Tensor arena | 876 bytes of 16 384 reserved | 5.35 % |
+| Heap, peak use | 52 984 of 368 408 bytes | 14.38 % |
+| Stack, peak use | 2 388 of 8 192 bytes | 29.15 % |
+| Latency (mean, std, runs) | 0.0528 ms, 0.0138 ms, 200 runs | — |
+| CPU cycles per inference | 13 509 (240 MHz) | — |
+| Throughput | 18 952 inferences/s | — |
+| CPU load | one inference every 30 min | 0.000003 % |
+| Power and energy | not measured | — |
+
+The `BENCHMARK` power lines read about 0 mA because the board was powered by
+the PC, not through the INA219; they are not a measurement.
+
+On-device check (`ml/validate_on_device.py`, same day):
+
+| Check | Same class as the PC | Identical int8 output | Largest difference |
+|---|---|---|---|
+| 100 quantized test vectors (`VECTOR`) | 100 of 100 | 95 of 100 | 6 units |
+| 50 raw test windows (`WINDOW`) | 50 of 50 | 48 of 50 | 2 units |
+
+Macro F1 of the node on the 100 vectors: 0.851. They are 88 of class 0, 11 of
+class 1 and 1 of class 2, a small sample; the F1 of the whole test split is
+0.683 (`ml/models/metrics_v1_int8.json`).
 
 ## Not oversizing the device: ESP32-S3 vs. Raspberry Pi Pico
 
@@ -89,9 +102,7 @@ by default, as the benchmark reported; the Arduino option "CPU Speed" can set
 another frequency if the comparison needs it. `firmware/pico_benchmark`
 runs the same int8 model with the same `BENCHMARK` command and the same
 report names, so the two reports can be put side by side. The benchmark needs
-no sensor, so the Pico can run it while the ESP32-S3 keeps its sensors; the
-INA219 is moved to the Pico only to measure its power (wiring in
-[hardware_setup.md](hardware_setup.md), section 10).
+no sensor, so the Pico can run it while the ESP32-S3 keeps its sensors.
 
 Differences in how the two boards are measured:
 
@@ -99,7 +110,6 @@ Differences in how the two boards are measured:
   stack is not measured. Its percentage uses the 264 KB of SRAM.
 - Flash: on the Pico the program size comes from the end address of the
   program in the flash (`__flash_binary_end`), over the 2 MB chip.
-- Power: on the Pico the INA219 is in series with `VSYS` instead of `5V`.
 - Wi-Fi: the Pico has none, so it could not set its clock by NTP or send
   data without a PC. That is a functional reason in favour of the ESP32-S3
   that does not depend on the measurements.
@@ -127,7 +137,8 @@ and the program and RAM rows with that in mind.
 
 ### Final comparison
 
-To fill in with the real model.
+Only the ESP32-S3 column was measured with the final model; the Pico was not
+measured again.
 
 | Metric | ESP32-S3 | Raspberry Pi Pico |
 |---|---|---|
@@ -136,6 +147,5 @@ To fill in with the real model.
 | Tensor arena | | |
 | RAM in use | | |
 | Latency (mean, std) | | |
-| Power idle / inferring | | |
-| Energy per inference | | |
+| Power and energy | not measured | not measured |
 | Identical int8 output vs. PC (`validate_on_device.py`) | | |

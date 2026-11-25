@@ -170,6 +170,12 @@ the INA219 and it reads about zero. That is normal.
 
 ### Measuring power
 
+**This measurement was not done in the project.** Known problem of the steps
+below: when the USB cable is connected again (step 4) the board restarts and,
+10 seconds later, the benchmark runs again and **overwrites** the report saved
+with the charger. The firmware has to keep the earlier report before this
+procedure can work.
+
 No PC is connected during the measurement, so the benchmark must start by
 itself and save its result:
 

@@ -1,6 +1,5 @@
 % Borrador del reporte final en español (formato IEEE Conference, dos columnas).
-% Las partes marcadas con \pend{...} dependen de resultados que aun no existen
-% (modelo entrenado, consumo con el INA219, noches frias). Se llenan al final.
+% Las limitaciones (sin noches frias, sin medicion de consumo) se dicen en el texto.
 % IMPORTANTE: es un borrador de trabajo. Cada integrante debe leerlo, corregirlo
 % y reescribirlo con sus palabras antes de entregarlo.
 % Nota: los lineamientos piden el reporte final en ingles; esta version en espanol
@@ -42,7 +41,7 @@
 \maketitle
 
 \begin{abstract}
-Las heladas da\~nan los cultivos de papa y los pastos del altiplano de Boyac\'a, y los pron\'osticos regionales no describen el microclima de cada predio. Este reporte describe un nodo embebido de bajo costo instalado en la vereda Pirgua (Tunja). Un ESP32-S3 lee un sensor BME280 y est\'a dise\~nado para clasificar el riesgo de helada en el propio dispositivo con un modelo TensorFlow Lite Micro cuantizado a int8, a partir de una ventana de 3 horas guardada en un buffer circular. Un m\'odulo en Python extrae el pron\'ostico web de Tunja, lo guarda en una tabla hash propia y lo compara con la predicci\'on del nodo en un tablero. Presentamos la arquitectura, el protocolo de captura, un conjunto de datos propio de dos noches v\'alidas (296 lecturas, la sonda nunca por debajo de 12,4\,$^\circ$C y el BME280 nunca por debajo de 11,45\,$^\circ$C), el desfase medido entre el BME280 y una sonda de referencia, y el consumo de recursos de la cadena de inferencia medido con un modelo de prueba en el ESP32-S3 y en una Raspberry Pi Pico. Entrenamos un modelo de tres clases solo con datos p\'ublicos: en la prueba, el F1 promedio fue 0,678 en punto flotante y 0,683 en int8. Como el conjunto propio no tiene noches fr\'ias, ese resultado no se valid\'o con datos de Pirgua; tampoco se midi\'o a\'un el consumo de energ\'ia ni se carg\'o el modelo final en las placas.
+Las heladas da\~nan los cultivos de papa y los pastos del altiplano de Boyac\'a, y los pron\'osticos regionales no describen el microclima de cada predio. Este reporte describe un nodo embebido de bajo costo instalado en la vereda Pirgua (Tunja). Un ESP32-S3 lee un sensor BME280 y est\'a dise\~nado para clasificar el riesgo de helada en el propio dispositivo con un modelo TensorFlow Lite Micro cuantizado a int8, a partir de una ventana de 3 horas guardada en un buffer circular. Un m\'odulo en Python extrae el pron\'ostico web de Tunja, lo guarda en una tabla hash propia y lo compara con la predicci\'on del nodo en un tablero. Presentamos la arquitectura, el protocolo de captura, un conjunto de datos propio de dos noches v\'alidas (296 lecturas, la sonda nunca por debajo de 12,4\,$^\circ$C y el BME280 nunca por debajo de 11,45\,$^\circ$C), el desfase medido entre el BME280 y una sonda de referencia, y el uso de recursos del modelo en el ESP32-S3, comparado con una Raspberry Pi Pico. Entrenamos un modelo de tres clases solo con datos p\'ublicos: en la prueba, el F1 promedio fue 0,678 en punto flotante y 0,683 en int8. Cargado en el ESP32-S3, el modelo dio la misma clase que el PC en 100 de 100 vectores de prueba y en 50 de 50 ventanas crudas, con una latencia de 0,053\,ms por inferencia. Como el conjunto propio no tiene noches fr\'ias, ese resultado no se valid\'o con datos de Pirgua, y el consumo de energ\'ia no se midi\'o.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -108,12 +107,12 @@ El punto de roc\'io $T_d$ se calcula con la aproximaci\'on de Magnus \cite{alduc
 \begin{equation}
 \gamma = \ln\frac{HR}{100} + \frac{aT}{b+T}, \qquad T_d = \frac{b\,\gamma}{a-\gamma},
 \end{equation}
-con $a=17{,}625$ y $b=243{,}04\,^\circ$C, la misma f\'ormula en el script de preparaci\'on de datos y en el firmware. Una prueba compara las dos implementaciones: con ventanas crudas, la salida int8 del nodo coincidi\'o con la del PC en 50 de 50 casos.
+con $a=17{,}625$ y $b=243{,}04\,^\circ$C, la misma f\'ormula en el script de preparaci\'on de datos y en el firmware. Una prueba compara las dos implementaciones: con 50 ventanas crudas y el modelo final, el nodo dio la misma clase que el PC en las 50, y la misma salida int8 exacta en 48 (en las otras dos, la mayor diferencia fue de 2 unidades).
 
 El nodo acepta comandos por el puerto serie: \texttt{STATUS}, \texttt{DUMP} (descarga el registro), \texttt{BENCHMARK} (200 inferencias y reporte de recursos), \texttt{VECTOR} (ejecuta el modelo sobre una entrada int8 cruda) y \texttt{WINDOW} (ejecuta todo el preprocesamiento y el modelo sobre lecturas crudas, sin guardar nada). Los dos \'ultimos permiten validar el modelo y el preprocesamiento por separado.
 
 \section{Selecci\'on del dispositivo}
-El dispositivo es una ESP32-S3 DevKitC-1 (m\'odulo ESP32-S3-N16R8): dos n\'ucleos Xtensa LX7 de hasta 240\,MHz con instrucciones vectoriales, 512\,KB de SRAM, 8\,MB de PSRAM, 16\,MB de flash y Wi-Fi integrado \cite{esp32s3}. Se adopt\'o por recomendaci\'on del docente del curso, y el reporte de recursos mide cu\'anto de ella usa realmente la tarea. El BME280 y el INA219 comparten un bus I2C (GPIO8 y GPIO9, direcciones 0x76 y 0x40) \cite{bme280}. Una sonda DS18B20 en GPIO4 da una temperatura de referencia que solo se usa para calibrar y no es entrada del modelo. El INA219 va en serie con la alimentaci\'on de 5\,V, as\'i que la potencia medida incluye las p\'erdidas del regulador de la placa.
+El dispositivo es una ESP32-S3 DevKitC-1 (m\'odulo ESP32-S3-N16R8): dos n\'ucleos Xtensa LX7 de hasta 240\,MHz con instrucciones vectoriales, 512\,KB de SRAM, 8\,MB de PSRAM, 16\,MB de flash y Wi-Fi integrado \cite{esp32s3}. Se adopt\'o por recomendaci\'on del docente del curso, y el reporte de recursos mide cu\'anto de ella usa realmente la tarea. El BME280 y el INA219 comparten un bus I2C (GPIO8 y GPIO9, direcciones 0x76 y 0x40) \cite{bme280}. Una sonda DS18B20 en GPIO4 da una temperatura de referencia que solo se usa para calibrar y no es entrada del modelo. El INA219 est\'a conectado al bus I2C para medir el consumo, pero esa medici\'on no se hizo en este trabajo.
 
 Como alternativa m\'as limitada tomamos una Raspberry Pi Pico (RP2040: dos n\'ucleos Cortex-M0+, 264\,KB de SRAM, 2\,MB de flash, sin Wi-Fi) \cite{rp2040}. Ejecuta el mismo modelo int8 y el mismo benchmark, de modo que los dos reportes se pueden poner lado a lado. Hay adem\'as una raz\'on funcional a favor de la ESP32-S3: la Pico no tiene Wi-Fi, as\'i que no puede recuperar su reloj por NTP despu\'es de un corte de energ\'ia, y el modelo usa la hora del d\'ia como entrada.
 
@@ -231,6 +230,8 @@ La entrada son 6 rezagos de temperatura, humedad, punto de roc\'io y (si todas l
 
 \textbf{Resultados del entrenamiento.} Entrenamos con la versi\'on 1 (20 entradas, porque la fuente del altiplano no tiene presi\'on, y tres clases). El modelo int8 pesa 3\,160\,B. La Tabla~\ref{tab:f1} muestra el conjunto de prueba, que se evalu\'o una sola vez: 114\,290 ventanas, todas de fuentes p\'ublicas (ninguna del nodo). El F1 promedio fue 0,678 en punto flotante y 0,683 en int8; la cuantizaci\'on no lo empeor\'o (diferencia de $+0{,}005$) y los dos modelos coinciden en la clase de 99,34\,\% de las ventanas. El modelo acierta casi todas las ventanas de riesgo (exhaustividad de 0,81 a 0,85) a costa de muchas falsas alarmas: la precisi\'on de las clases 1 y 2 es de 0,37 a 0,46. Es el comportamiento esperado con pesos por clase y clases raras, pero un productor recibir\'ia varias alertas innecesarias por cada helada real. Estos valores no describen el desempe\~no en Pirgua, porque no hay datos propios en la prueba.
 
+\textbf{Validaci\'on en el dispositivo.} Cargamos el modelo int8 en el ESP32-S3 y le enviamos 100 vectores de prueba ya cuantizados (88 de clase 0, 11 de clase 1 y 1 de clase 2). El nodo dio la misma clase que el modelo int8 en el PC en los 100 casos, y la misma salida int8 exacta en 95; en los otros 5, la mayor diferencia fue de 6 unidades en alguna de las tres salidas, sin cambiar la clase. El F1 promedio del nodo sobre esos 100 vectores fue 0,851. Como el nodo y el PC predicen la misma clase en todos, ese valor es tambi\'en el del PC sobre la misma muestra; es una muestra peque\~na y desbalanceada, y no reemplaza el F1 de 0,683 sobre todo el conjunto de prueba.
+
 \begin{table}[t]
 \caption{F1 por clase en el conjunto de prueba (solo datos p\'ublicos)}
 \label{tab:f1}
@@ -270,16 +271,14 @@ Heap y pila & tama\~no menos el m\'inimo libre registrado (pico) \\
 Latencia & \texttt{micros()} alrededor de cada inferencia; media y desviaci\'on est\'andar de 200 ejecuciones \\
 Ciclos de CPU & contador de ciclos del n\'ucleo, media de 200 ejecuciones \\
 Carga de CPU & latencia media dividida por el periodo de 30\,min \\
-Potencia & INA219 en serie con la alimentaci\'on de 5\,V, promedio de 50 lecturas en reposo y en inferencia continua \\
-Energ\'ia por inferencia & potencia en inferencia $\times$ latencia media \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Limitaciones del m\'etodo: la carga de CPU es una estimaci\'on a partir de la latencia y no una medici\'on con las herramientas de perfilado del fabricante; los ciclos de CPU se agregaron al firmware despu\'es de las pruebas de la Tabla~\ref{tab:rec} y a\'un no se han medido en las placas; el INA219 est\'a antes del pin de 5\,V, as\'i que la potencia incluye las p\'erdidas del regulador; y la latencia y la potencia se miden con la CPU a 240\,MHz y el Wi-Fi apagado.
+Limitaciones del m\'etodo: la carga de CPU es una estimaci\'on a partir de la latencia y no una medici\'on con las herramientas de perfilado del fabricante; los ciclos de CPU solo se midieron en el ESP32-S3 con el modelo final; la latencia se mide con la CPU a 240\,MHz y el Wi-Fi apagado; y el consumo de energ\'ia no se midi\'o.
 
 \section{Resultados}
-\textbf{Aviso.} Las cifras de recursos y las predicciones de esta secci\'on corresponden a un modelo de prueba (\textit{placeholder}) usado solo para verificar que la cadena funciona. No son resultados del proyecto. Las lecturas y el pron\'ostico, en cambio, son reales.
+\textbf{Aviso.} Las predicciones del tablero y la comparaci\'on con la Pico (Tabla~\ref{tab:rec}) corresponden a un modelo de prueba (\textit{placeholder}) usado solo para verificar que la cadena funcionaba. Las lecturas, el pron\'ostico y los recursos del ESP32-S3 con el modelo final (Tabla~\ref{tab:recfinal}) son reales.
 
 \subsection{Dos noches v\'alidas en Pirgua}
 Despu\'es de descartar la primera noche, hay dos noches v\'alidas con ambos sensores afuera: la del 21 al 22 de noviembre (143 lecturas, una cada 5\,min sin huecos, m\'inimo 13,2\,$^\circ$C) y la del 22 al 23 (153 lecturas, m\'inimo 12,4\,$^\circ$C por la sonda y 11,45\,$^\circ$C por el BME280). Son 296 lecturas, todas de clase 0. La Fig.~\ref{fig:noche3} muestra la segunda de ellas. Ninguna noche se acerc\'o a los l\'imites de 6 o de 2\,$^\circ$C, as\'i que el conjunto propio todav\'ia no tiene ejemplos de precauci\'on ni de riesgo. En el periodo cubierto por este reporte no hubo noches fr\'ias; queda como trabajo futuro seguir capturando hasta que ocurra una.
@@ -311,7 +310,33 @@ En las dos noches medidas, wttr.in dio 12\,$^\circ$C a las 21:00, mientras la so
 \label{fig:dash}
 \end{figure}
 
-\subsection{Consumo de recursos con el modelo de prueba}
+\subsection{Recursos del ESP32-S3 con el modelo final}
+La Tabla~\ref{tab:recfinal} muestra el comando \texttt{BENCHMARK} del firmware con el modelo final, medido el 25 de noviembre de 2026 con la placa conectada al PC. Todo queda muy por debajo del 30\,\% que el curso usa como se\~nal para probar un dispositivo m\'as limitado: el tensor arena usa el 5,35\,\%, el programa el 2,84\,\% del flash y el pico de heap el 14,38\,\%. La mayor proporci\'on es la de la pila, con 29,15\,\%. Con una inferencia cada 30\,min, la carga de CPU es despreciable.
+
+\begin{table}[t]
+\caption{Recursos del ESP32-S3 con el modelo final (200 inferencias, 25 de noviembre de 2026)}
+\label{tab:recfinal}
+\centering
+\small
+\begin{tabular}{@{}>{\raggedright}p{2.6cm}>{\raggedright\arraybackslash}p{5cm}@{}}
+\toprule
+M\'etrica & Valor \\
+\midrule
+Latencia & 0,0528 $\pm$ 0,0138\,ms \\
+Ciclos de CPU & 13\,509 por inferencia (240\,MHz) \\
+Throughput & 18\,952 inferencias/s \\
+Tensor arena & 876\,B (5,35\,\% de 16\,384\,B) \\
+Modelo & 3\,160\,B (0,02\,\% de 16\,MB) \\
+Programa & 476\,480\,B (2,84\,\% del flash; 36,35\,\% de la partici\'on) \\
+Heap, pico & 52\,984 de 368\,408\,B (14,38\,\%) \\
+Pila, pico & 2\,388 de 8\,192\,B (29,15\,\%) \\
+Carga de CPU & 0,000003\,\% (una inferencia cada 30\,min) \\
+Potencia & no medida \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Comparaci\'on con la Pico (modelo de prueba)}
 La Tabla~\ref{tab:rec} muestra la prueba en las dos placas con el mismo modelo de prueba (20 entradas, capas ocultas de 16 y 8 unidades, 2 clases), con ambas conectadas al PC y sin medir potencia. La latencia es la media de 200 ejecuciones. En la ESP32-S3 el uso de memoria y la latencia quedan muy por debajo del l\'imite del 30\,\% que sugiere el curso para probar una placa m\'as peque\~na. La Pico ejecut\'o el mismo modelo con una latencia de 0,087\,ms frente a 0,050\,ms, y la salida int8 de la ESP32-S3 coincidi\'o con la del PC en 100 de 100 vectores del modelo solo y en 50 de 50 ventanas completas.
 
 \begin{table}[t]
@@ -335,18 +360,18 @@ Potencia & no medida & no medida \\
 
 Los dos programas no son equivalentes: el de la ESP32-S3 tambi\'en lee los sensores, guarda en flash y puede usar Wi-Fi, mientras el de la Pico solo ejecuta el benchmark. Las filas del modelo (latencia y tensor arena) se pueden comparar directamente; las de programa y RAM, con esa salvedad. Con el firmware actual en la ESP32-S3 (17 de noviembre), el pico de pila fue 30,86\,\% y el del heap 14,13\,\%. La carga de CPU se estima como la latencia media dividida por el periodo de 30\,min entre inferencias, no con las herramientas de perfilado del fabricante.
 
-\pend{consumo en reposo y durante la inferencia con el INA219 en las dos placas, energ\'ia por inferencia, ciclos de CPU, y todo lo anterior repetido con el modelo final}
+La comparaci\'on con la Pico no se repiti\'o con el modelo final. Las dos redes tienen la misma forma (20 entradas y capas de 16 y 8 unidades) y solo cambia la capa de salida, de 2 a 3 clases; en el ESP32-S3 el tensor arena qued\'o igual (876\,B) y la latencia pas\'o de 0,050 a 0,053\,ms. No medimos el consumo de energ\'ia ni la energ\'ia por inferencia en ninguna de las dos placas.
 
 \section{Discusi\'on y limitaciones}
-Lo que s\'i est\'a demostrado es que la cadena completa funciona: el nodo mide durante noches enteras sin PC, el firmware ejecuta el modelo int8 con una salida id\'entica a la del PC, el scraper y la tabla hash alimentan un tablero y el consumo de memoria y tiempo de la inferencia es peque\~no.
+Lo que s\'i est\'a demostrado es que la cadena completa funciona: el nodo mide durante noches enteras sin PC, el firmware ejecuta el modelo int8 final y da la misma clase que el PC, el scraper y la tabla hash alimentan un tablero y el consumo de memoria y tiempo de la inferencia es peque\~no.
 
-Lo que no est\'a demostrado es lo central del proyecto: que el nodo clasifique bien una helada. Faltan tres cosas. Primero, no hay noches fr\'ias en el conjunto propio, as\'i que la hip\'otesis de que Pirgua es m\'as fr\'io que la estaci\'on del IDEAM sigue sin probarse. Segundo, el modelo se entren\'o y se prob\'o solo con datos p\'ublicos, y las cifras de recursos siguen siendo las de un modelo de prueba, porque el modelo real a\'un no se carg\'o en las placas y podr\'ian cambiar. Tercero, el desfase entre sensores no es constante, as\'i que incluso con noches fr\'ias la incertidumbre de la medici\'on es del orden de un grado. Adem\'as, la fuente del pron\'ostico no cubre las horas del m\'inimo diario y solo tenemos dos comparaciones con ella. Si en toda la temporada el nodo no registra una noche bajo el umbral, lo reportaremos as\'i, porque entrenar y evaluar solo con datos p\'ublicos no responde la pregunta de investigaci\'on.
+Lo que no est\'a demostrado es lo central del proyecto: que el nodo clasifique bien una helada. Faltan tres cosas. Primero, no hay noches fr\'ias en el conjunto propio, as\'i que la hip\'otesis de que Pirgua es m\'as fr\'io que la estaci\'on del IDEAM sigue sin probarse. Segundo, el modelo se entren\'o y se prob\'o solo con datos p\'ublicos; en el ESP32-S3 reproduce la clase del PC, pero eso no dice nada de su acierto en Pirgua. Tercero, el desfase entre sensores no es constante, as\'i que incluso con noches fr\'ias la incertidumbre de la medici\'on es del orden de un grado. Adem\'as, la fuente del pron\'ostico no cubre las horas del m\'inimo diario y solo tenemos dos comparaciones con ella. Si en toda la temporada el nodo no registra una noche bajo el umbral, lo reportaremos as\'i, porque entrenar y evaluar solo con datos p\'ublicos no responde la pregunta de investigaci\'on.
 
 \section{Pruebas y reproducibilidad}
 El repositorio incluye 46 pruebas autom\'aticas en Python y una prueba en C++ del buffer circular, que no necesitan placa, sensores ni red. Cubren la f\'ormula del punto de roc\'io, el relleno de vac\'ios cortos, el c\'alculo del m\'inimo de las pr\'oximas 6\,h, la partici\'on por d\'ias sin d\'ias compartidos, la tabla hash, el desfase entre sensores, la comparaci\'on nodo--pron\'ostico y el an\'alisis de la p\'agina del pron\'ostico. No cubren el entrenamiento ni la conversi\'on, porque necesitan un conjunto de datos real. Los archivos crudos del nodo nunca se editan: los periodos v\'alidos se declaran en la configuraci\'on y el script de preparaci\'on ignora el resto, de modo que las pruebas en interior y las lecturas del arranque no contaminan el conjunto. Las versiones del conjunto de datos se guardan sin sobrescribirse, junto con una copia de la configuraci\'on usada.
 
 \section{Conclusiones y trabajo pendiente}
-Se construy\'o y verific\'o la cadena de adquisici\'on, inferencia en el borde, scraping y comparaci\'on, con dos estructuras de datos propias de costo constante en promedio. El nodo midi\'o tres noches en Pirgua (dos v\'alidas) sin que la sonda bajara de 12,4\,$^\circ$C ni el BME280 de 11,45\,$^\circ$C, y por eso todav\'ia no se puede confirmar la hip\'otesis ni medir el acierto del modelo. El modelo de tres clases, entrenado con datos p\'ublicos, alcanz\'o un F1 promedio de 0,678 en punto flotante y 0,683 en int8. Queda pendiente: cargar ese modelo en las placas, medir su consumo con el INA219 en las dos placas, y capturar noches fr\'ias para validarlo en Pirgua.
+Se construy\'o y verific\'o la cadena de adquisici\'on, inferencia en el borde, scraping y comparaci\'on, con dos estructuras de datos propias de costo constante en promedio. El nodo midi\'o tres noches en Pirgua (dos v\'alidas) sin que la sonda bajara de 12,4\,$^\circ$C ni el BME280 de 11,45\,$^\circ$C, y por eso todav\'ia no se puede confirmar la hip\'otesis ni medir el acierto del modelo. El modelo de tres clases, entrenado con datos p\'ublicos, alcanz\'o un F1 promedio de 0,678 en punto flotante y 0,683 en int8. Cargado en el ESP32-S3, dio la misma clase que el PC en 100 de 100 vectores y en 50 de 50 ventanas crudas, con 0,053\,ms por inferencia y menos del 30\,\% de cada recurso. El consumo de energ\'ia no se midi\'o. Como trabajo futuro quedan medir el consumo, repetir la comparaci\'on con la Pico con el modelo final y capturar noches fr\'ias para validarlo en Pirgua.
 
 \section*{Disponibilidad}
 C\'odigo, datos crudos y documentaci\'on: \url{https://github.com/MahomerLeon/frost-node-tinyml}.

@@ -14,7 +14,8 @@ Project proposal (IEEE format): [docs/IEEE_proposal_frost_node.pdf](docs/IEEE_pr
 - An **ESP32-S3 DevKitC-1** reads temperature, humidity and pressure from a
   **BME280** sensor and classifies the frost risk **on the device** with a
   TensorFlow Lite int8 model (TFLite Micro).
-- An **INA219** measures the power consumption of the node.
+- An **INA219** is wired to measure the power consumption of the node; that
+  measurement was **not done**.
 - A **DS18B20** probe gives a reference temperature, used only to calibrate
   the BME280 (it is not a model input).
 - A **Raspberry Pi Pico (RP2040)** runs the same model only to compare its
@@ -66,12 +67,12 @@ requirements.txt       Python dependencies (requirements.lock.txt: exact version
 
 | Req. | What it asks | Folder | Status |
 |---|---|---|---|
-| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Code written; verified on the board with a placeholder model. Pending: load the real model (`firmware/inference/model_data.h` is already generated) |
+| R2 | Inference runs on the ESP32-S3, not in the cloud or on the PC | `firmware/inference/` | Real model loaded on the ESP32-S3 on 2026-11-25: same class as the PC int8 model in 100 of 100 test vectors and 50 of 50 raw windows (`ml/validate_on_device.py`) |
 | R3 | Light TFLite model with int8 quantization; F1 loss vs. the float model documented | `ml/`, `docs/` | Done with dataset v1 (public data for the test set): macro F1 0.678 float, 0.683 int8 (+0.005), 99.34 % same class (`ml/models/metrics_v1_*.json`) |
 | R4 | Own dataset captured with the node, documented protocol, versions (v1, v2...), train/val/test split by days without leakage | `firmware/logger/`, `data/raw/`, `data/processed/`, `docs/` | Logger, preparation script and draft protocol written; split tested; real BME280 readings verified on the board. Two valid nights captured in Pirgua (296 readings, class 0 only); no cold night happened |
 | R5 | Periodic scraping used to validate the local prediction against the forecast | `scraper/` | Scraper and dashboard working with the real page. Pending: comparison with real node predictions |
 | R6 | Two data structures justified with Big-O: circular buffer on the edge, hash table in the scraper/dashboard | `firmware/inference/`, `scraper/`, `docs/` | Both implemented, tested and documented |
-| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `firmware/pico_benchmark/`, `docs/` | Benchmark verified on the ESP32-S3 and the Raspberry Pi Pico with a placeholder model (see `docs/resource_report.md`). Pending: power (INA219), real model |
+| R7 | Flash, RAM (tensor arena), latency (mean and std over >= 100 runs), CPU load and power, as % of the total available | `firmware/inference/`, `firmware/pico_benchmark/`, `docs/` | Benchmark verified on the ESP32-S3 and the Raspberry Pi Pico with a placeholder model (see `docs/resource_report.md`). Real model on the ESP32-S3: 0.0528 ms, 13 509 cycles, every resource under 30 %. Pico compared only with the placeholder model. Power and energy: **not measured** |
 
 The project is closed with these open items:
 
@@ -83,10 +84,11 @@ The project is closed with these open items:
   -0.12 °C and then -1.16 °C, so no calibration is applied yet.
 - **Model:** trained on dataset v1 (3 classes, 20 inputs, 3 160 B int8). The
   test split has **no own-node windows**, so its F1 describes public data, not
-  Pirgua. The resource figures of R7 are still those of a placeholder model
-  until the real one is loaded on the boards.
+  Pirgua. On the ESP32-S3 it gives the same class as the PC; the Pico comparison
+  was not repeated with it.
 - **Not run on the board yet:** a full 3 h window of real readings with a
-  prediction, and the power measurement through the INA219 on either board.
+  prediction.
+- **Power:** not measured. The board could not be powered through the INA219.
 - **Calibration:** done in place during the capture (both sensors together
   in the sun shield); not done yet.
 

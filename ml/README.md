@@ -42,8 +42,9 @@ Dataset v1, the float model and the int8 model were built on 2026-11-24 with
 the thresholds 2 and 6 °C (`data/processed/dataset_v1_report.txt`,
 `ml/models/`). Test split, evaluated once: macro F1 0.678 float and 0.683
 int8; the test windows come only from IDEAM and the Zenodo dataset, none from
-the node. Not done yet: `validate_on_device.py` with this model, because the
-board has not been loaded with it.
+the node. `validate_on_device.py` with this model on the ESP32-S3 (2026-11-25): same
+class as the PC in 100 of 100 vectors and 50 of 50 raw windows; identical
+int8 output in 95 and 48 (see `docs/resource_report.md`).
 
 ## Notes on the method
 
